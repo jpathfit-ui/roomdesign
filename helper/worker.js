@@ -24,7 +24,10 @@ export default {
     if (request.method !== 'GET') return json({ ok: false, reason: 'method' }, 405);
     if (origin && !allowed.includes(origin)) return json({ ok: false, reason: 'origin' }, 403);
 
-    const target = safeUrl(new URL(request.url).searchParams.get('url'));
+    const qs = new URL(request.url).searchParams;
+    if (qs.get('img')) return proxyImage(qs.get('img'), qs.get('ref'), cors);
+
+    const target = safeUrl(qs.get('url'));
     if (!target) return json({ ok: false, reason: 'badurl' }, 400);
 
     let resp;
@@ -53,6 +56,7 @@ export default {
     return json({
       ok: true,
       name: info.name,
+      images: info.images,
       store: new URL(finalUrl).hostname.replace(/^www\./, ''),
       image,
       measures: info.measures,
@@ -77,6 +81,23 @@ async function timed(url, opts, ms) {
   const t = setTimeout(() => ac.abort(), ms);
   try { return await fetch(url, { ...opts, signal: ac.signal }); }
   finally { clearTimeout(t); }
+}
+
+// Returns one image's bytes so the app can inspect it (the browser blocks this when loading the store directly).
+async function proxyImage(raw, ref, cors) {
+  const fail = (status) => new Response('', { status, headers: cors });
+  const u = safeUrl(raw);
+  if (!u) return fail(400);
+  try {
+    const r = await timed(u.href, {
+      headers: { 'User-Agent': UA, 'Referer': (safeUrl(ref) || u).origin + '/', 'Accept': 'image/*' },
+    }, 8000);
+    const type = (r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!r.ok || !type.startsWith('image/') || type.includes('svg')) return fail(404);
+    const b = await r.arrayBuffer();
+    if (b.byteLength > MAX_IMG * 2) return fail(413);
+    return new Response(b, { status: 200, headers: { ...cors, 'Content-Type': type } });
+  } catch (e) { return fail(502); }
 }
 
 async function fetchImage(url, base) {
@@ -147,7 +168,38 @@ function parsePage(html, baseUrl) {
   while ((m = compact.exec(plain)) && n++ < 30) {
     add({ W: 'width', D: 'depth', H: 'height', L: 'length' }[m[3].toUpperCase()], toInches(parseFloat(m[1]), m[2]));
   }
-  return { name, imageUrl, measures: found };
+  return { name, imageUrl, images: collectImages(html, baseUrl, imageUrl), measures: found };
+}
+
+// Every product-looking picture on the page, in page order. The app decides which one is a clean product shot.
+function collectImages(html, baseUrl, primary) {
+  const out = [];
+  const seen = new Set();
+  const push = (raw) => {
+    if (!raw) return;
+    let u;
+    try { u = new URL(decode(String(raw).trim()), baseUrl); } catch (e) { return; }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return;
+    const key = u.origin + u.pathname;
+    if (seen.has(key)) return;
+    if (!/\.(jpe?g|png|webp)$/i.test(u.pathname) && !/\/images?\//i.test(u.pathname)) return;
+    if (/logo|icon|sprite|badge|pixel|avatar|flag|payment|banner|placeholder|swatch/i.test(u.pathname)) return;
+    seen.add(key);
+    out.push(u.href);
+  };
+  push(primary);
+  const tag = /<(?:img|source)\b[^>]*>/gi;
+  let m;
+  while ((m = tag.exec(html)) && out.length < 40) {
+    const t = m[0];
+    for (const attr of ['src', 'data-src', 'data-original']) {
+      const v = (t.match(new RegExp('\\b' + attr + '=["\']([^"\']+)["\']', 'i')) || [])[1];
+      if (v) push(v);
+    }
+    const ss = (t.match(/\bsrcset=["']([^"']+)["']/i) || [])[1];
+    if (ss) push(ss.split(',').pop().trim().split(/\s+/)[0]);
+  }
+  return out.slice(0, 10);
 }
 
 function jsonLd(html) {

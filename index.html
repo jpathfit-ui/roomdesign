@@ -115,6 +115,9 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
     var(--card);
 }
 .thumb img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+.thumb.on{outline:3px solid var(--brass);outline-offset:1px}
+#candBox p{margin:8px 0 0;font-size:13px;color:var(--muted)}
+#candRow{padding:8px 0 0}
 .addbtn{height:64px;flex-direction:column;gap:0;line-height:1.15;padding:0 16px}
 .addbtn b{font-family:var(--display);font-size:22px;line-height:1}
 .hint{color:var(--muted);font-size:13px;padding-left:4px}
@@ -283,6 +286,7 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
   <form class="sheet" id="pieceForm" role="dialog" aria-modal="true" aria-labelledby="pieceTitle">
     <h2 id="pieceTitle">Add a piece</h2>
     <div id="photoBox">No photo yet</div>
+    <div id="candBox" hidden><p>Other photos from that page. Tap one to use it.</p><div class="row" id="candRow"></div></div>
     <p id="eraseHint" hidden>Drag a box over anything that should not be there, like a badge or label, to erase it.</p>
     <div class="wrap">
       <label class="btn primary" for="furnFile" tabindex="0">Take or choose photo</label>
@@ -1034,7 +1038,7 @@ function openPiece(id){
   $('#pNotes').value=p&&p.notes?p.notes:'';$('#pStore').value=p?p.store:'';$('#pLink').value=p?p.link:'';
   renderFields();
   $('#pFetch').hidden=hosted;$('#fetchNote').hidden=hosted||!!helperUrl;
-  $('#pDelete').hidden=!p;$('#pasteBox').value='';
+  $('#pDelete').hidden=!p;$('#pasteBox').value='';$('#candBox').hidden=true;$('#candRow').textContent='';
   const row=$('#pSetsRow'),box=$('#pSets');row.hidden=!sets.length;box.textContent='';
   for(const s of sets){
     const b=h('button',{type:'button',class:'btn small'+(draft.sets.has(s.id)?' on':''),text:s.name,'aria-pressed':String(draft.sets.has(s.id))});
@@ -1134,12 +1138,63 @@ $('#undoErase').addEventListener('click',()=>{
 });
 /* Fill the form from a product link, through the link helper */
 let helperUrl='';
+/* Clean product photos: fetch the page's pictures through the helper, score how plain each background is, pick the best */
+function plainScore(blob){
+  return new Promise(res=>{
+    const u=URL.createObjectURL(blob),im=new Image();
+    im.onload=()=>{
+      try{
+        if(Math.min(im.naturalWidth,im.naturalHeight)<120){res(-1);return;}
+        const k=160/Math.max(im.naturalWidth,im.naturalHeight),w=Math.max(1,Math.round(im.naturalWidth*k)),hh=Math.max(1,Math.round(im.naturalHeight*k));
+        const c=document.createElement('canvas');c.width=w;c.height=hh;const x=c.getContext('2d');x.drawImage(im,0,0,w,hh);
+        res(borderStats(x.getImageData(0,0,w,hh).data,w,hh,26).share);
+      }catch(_){res(-1);}
+      URL.revokeObjectURL(u);
+    };
+    im.onerror=()=>{URL.revokeObjectURL(u);res(-1);};im.src=u;
+  });
+}
+async function loadCandidates(urls,link,signal){
+  const base=helperUrl+(helperUrl.includes('?')?'&':'?')+'img=',list=urls.slice(0,8),out=new Array(list.length);
+  let next=0;
+  const work=async()=>{
+    while(next<list.length){
+      const i=next++;
+      try{
+        const r=await fetch(base+encodeURIComponent(list[i])+'&ref='+encodeURIComponent(link),{signal});
+        if(!r.ok)continue;
+        const blob=await r.blob();if(!blob.type.startsWith('image/'))continue;
+        const sc=await plainScore(blob);if(sc<0)continue;
+        out[i]={blob,sc};
+      }catch(_){}
+    }
+  };
+  await Promise.all([work(),work(),work()]);
+  const c=out.filter(Boolean);
+  if(!c.length)return false;
+  draft.cands=c;
+  const row=$('#candRow');row.textContent='';
+  const use=async(k)=>{
+    await setDraftPhoto(new File([c[k].blob],'product.jpg',{type:c[k].blob.type||'image/jpeg'}));
+    [...row.children].forEach((b,j)=>b.classList.toggle('on',j===k));
+  };
+  c.forEach((q,k)=>{
+    const b=h('button',{type:'button',class:'thumb','aria-label':'Use photo '+(k+1)});
+    const im=h('img',{alt:''});im.src=URL.createObjectURL(q.blob);b.append(im);
+    b.addEventListener('click',()=>use(k));row.append(b);
+  });
+  $('#candBox').hidden=c.length<2;
+  if(draft.orig&&draft.newPhoto)return false;
+  if(draft.orig&&!draft.newPhoto&&draft.id)return false;
+  let k=c.findIndex(q=>q.sc>=.6);if(k<0)k=0;
+  await use(k);return true;
+}
 $('#pFetch').addEventListener('click',async()=>{
   if(!draft)return;
   const link=normLink($('#pLink').value);
   if(!link){toast('Paste a product link first.');return;}
   if(!helperUrl){toast('Add the link helper address in Menu first.');return;}
-  const btn=$('#pFetch'),ac=new AbortController(),timer=setTimeout(()=>ac.abort(),20000);
+  const btn=$('#pFetch'),ac=new AbortController(),timer=setTimeout(()=>ac.abort(),45000);
   btn.disabled=true;btn.textContent='Fetching…';
   try{
     let r;
@@ -1161,7 +1216,10 @@ $('#pFetch').addEventListener('click',async()=>{
     if(rest.length&&!$('#pNotes').value.trim())$('#pNotes').value=rest.map(m=>m.label+' '+fmt(m.inches)+' '+unit).join(', ').slice(0,200);
     if(n)got.push(n+(n===1?' measurement':' measurements'));
     renderFields();
-    if(j.image&&!draft.orig){
+    if(Array.isArray(j.images)&&j.images.length){
+      toast('Looking for a clean product photo…');
+      if(await loadCandidates(j.images,link,ac.signal))got.push('photo');
+    }else if(j.image&&!draft.orig){
       try{const blob=await (await fetch(j.image)).blob();await setDraftPhoto(new File([blob],'product.jpg',{type:blob.type||'image/jpeg'}));got.push('photo');}catch(_){}
     }
     toast(got.length?'Filled in '+got.join(', ')+'. Check the numbers against the store page.':'Nothing new to fill in.');
