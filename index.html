@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Room Designer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: a one-screen studio. Slim bar and room tabs on top, the room photo fills a dark well in the middle,
+     and furniture pieces sit in a tray underneath like samples laid out on a board. The furniture library
+     opens as a drawer on a phone and as a side panel on a wide screen. */
+  --plaster:#ECEFE9;
+  --card:#F8F9F6;
+  --ink:#1C2825;
+  --muted:#5A6863;
+  --line:#CDD4CC;
+  --well:#27302E;
+  --spruce:#2F5D50;
+  --on-spruce:#F3F7F2;
+  --brass:#C2912E;
+  --danger:#A03E2D;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --body:"Hanken Grotesk","Avenir Next","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --plaster:#151B19;--card:#1F2725;--ink:#E7ECE6;--muted:#98A69F;--line:#34403C;--well:#0C100F;
+    --spruce:#86C5AE;--on-spruce:#0F201B;--brass:#E2B24C;--danger:#E58370;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --plaster:#151B19;--card:#1F2725;--ink:#E7ECE6;--muted:#98A69F;--line:#34403C;--well:#0C100F;
+  --spruce:#86C5AE;--on-spruce:#0F201B;--brass:#E2B24C;--danger:#E58370;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--plaster);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.35;
+  display:flex;flex-direction:column;overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:pan-x pan-y;
+  -webkit-user-select:none;user-select:none;
+}
+button,label.btn,a.btn,input,select{font:inherit;color:inherit}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 14px;
+  border:1px solid var(--line);border-radius:10px;background:var(--card);font-weight:600;white-space:nowrap;cursor:pointer;
+  text-decoration:none;flex:none;touch-action:manipulation;
+}
+.btn:focus-visible,.thumb:focus-visible,#handle:focus-visible,#rot:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+.btn[disabled]{opacity:.4;cursor:default}
+.btn.primary{background:var(--spruce);border-color:var(--spruce);color:var(--on-spruce)}
+.btn.on{background:var(--ink);border-color:var(--ink);color:var(--plaster)}
+.btn.danger{color:var(--danger)}
+.btn.small{min-height:40px;padding:0 12px}
+.hide-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+header{display:flex;align-items:center;gap:8px;padding:8px 18px 0}
+h1{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.02em;margin:0;flex:1;min-width:0;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+h1 small{display:block;font-family:var(--body);font-weight:400;font-size:13px;letter-spacing:0;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+#bar2{display:flex;align-items:center;gap:8px;padding:8px 18px;border-bottom:1px solid var(--line)}
+#tabs{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none;padding:2px}
+#tabs::-webkit-scrollbar{display:none}
+
+#well{flex:1;min-height:0;background:var(--well);display:grid;place-items:center;overflow:hidden;touch-action:none;position:relative;z-index:0;padding:8px 18px}
+#stage{position:relative;overflow:hidden;background:#000}
+#room{display:block;width:100%;height:100%;pointer-events:none}
+.item{position:absolute;transform:translate(-50%,-50%);cursor:grab}
+.item img{display:block;position:relative;width:100%;height:100%;pointer-events:none;-webkit-user-drag:none}
+.csh{position:absolute;left:4%;right:4%;border-radius:50%;pointer-events:none;background:radial-gradient(ellipse closest-side,rgba(0,0,0,.6),rgba(0,0,0,.3) 55%,transparent)}
+#selbox{position:absolute;display:none;border:2px dashed var(--brass);border-radius:4px;pointer-events:none;z-index:9999;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+#selbox.locked{border-style:solid;border-color:#fff}
+#selbox.locked #handle,#selbox.locked #rot{display:none}
+#rot{left:-17px;cursor:grab}
+#handle{right:-17px;cursor:nwse-resize}
+#handle,#rot{
+  position:absolute;bottom:-17px;width:34px;height:34px;border-radius:50%;padding:0;
+  background:var(--brass);border:2px solid #fff;color:#1c1c1c;pointer-events:auto;
+  display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.4);touch-action:none;
+}
+#handle::before,#rot::before{content:"";position:absolute;inset:-9px}
+#handle svg,#rot svg{width:16px;height:16px;pointer-events:none}
+.chip{
+  position:absolute;top:10px;z-index:10000;padding:5px 10px;border-radius:99px;border:0;
+  background:rgba(20,26,24,.78);color:#F3F7F2;font-size:13px;font-weight:600;
+}
+#chip{left:10px;pointer-events:none}
+#sizeChip{right:10px;min-height:34px;cursor:pointer;font-family:inherit;background:var(--brass);color:#1c1c1c}
+#calSvg{position:absolute;inset:0;width:100%;height:100%;z-index:10001;pointer-events:none}
+#calSvg line{stroke-width:3;stroke-linecap:round}
+.calH{
+  position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;z-index:10002;display:grid;place-items:center;
+  font-weight:600;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45);cursor:move;touch-action:none;color:#1c1c1c;
+}
+.calH::before{content:"";position:absolute;inset:-8px}
+.calH.a{background:#E2B24C}.calH.b{background:#8FD3F0}
+
+footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom:30px}
+#cutRow{display:flex;align-items:center;gap:12px;padding:8px 16px 0}
+#cutRow label{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap}
+#cutRow input{flex:1;min-width:0;accent-color:var(--spruce);height:32px}
+.row{display:flex;gap:8px;padding:10px 18px 12px;scroll-padding:0 18px;overflow-x:auto;scrollbar-width:none;align-items:center}
+.row::-webkit-scrollbar{display:none}
+.thumb{
+  flex:none;width:64px;height:64px;padding:6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;
+  background:
+    linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 0 0/12px 12px,
+    linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 6px 6px/12px 12px,
+    var(--card);
+}
+.thumb img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+.addbtn{height:64px;flex-direction:column;gap:0;line-height:1.15;padding:0 16px}
+.addbtn b{font-family:var(--display);font-size:22px;line-height:1}
+.hint{color:var(--muted);font-size:13px;padding-left:4px}
+#calBar{padding:10px 16px 12px;display:flex;flex-direction:column;gap:8px}
+#calBar p{margin:0;font-size:13px;color:var(--muted);max-width:65ch}
+.dot{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:13px;color:#1c1c1c;align-self:center}
+.dot.a{background:#E2B24C}.dot.b{background:#8FD3F0}
+.unit{align-self:center;color:var(--muted);font-weight:600;min-width:22px}
+[hidden]{display:none!important}
+
+#toast{
+  position:fixed;left:50%;bottom:142px;transform:translateX(-50%);max-width:calc(100% - 32px);z-index:60;
+  background:var(--ink);color:var(--plaster);padding:10px 14px;border-radius:10px;font-weight:600;font-size:14px;
+  opacity:0;pointer-events:none;transition:opacity .2s;text-align:center;
+}
+#toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+
+.sheetWrap{position:fixed;inset:0;z-index:40;background:rgba(10,14,13,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{
+  width:100%;max-width:560px;max-height:90%;overflow-y:auto;background:var(--plaster);border-radius:18px 18px 0 0;
+  padding:18px 16px 22px;display:flex;flex-direction:column;gap:12px;-webkit-user-select:text;user-select:text;
+}
+.sheet h2{font-family:var(--display);font-size:22px;letter-spacing:-.02em;margin:0;flex:1}
+.sheet h3{font-size:13px;font-weight:600;color:var(--muted);margin:8px 0 -4px;text-transform:uppercase;letter-spacing:.06em}
+.sheet p{margin:0;color:var(--muted);font-size:14px;max-width:60ch}
+.head{display:flex;align-items:center;gap:8px}
+.field{width:100%;min-height:46px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);padding:0 12px;min-width:0}
+.field::placeholder{color:var(--muted)}
+#pasteBox{border:1.5px dashed var(--line);text-align:center}
+.wrap{display:flex;flex-wrap:wrap;gap:8px}
+.pair{display:flex;gap:8px}
+.pair .field{flex:1}
+.lbl{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted);flex:1;min-width:0}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px;margin:0 -2px}
+.chips::-webkit-scrollbar{display:none}
+.saved{display:flex;gap:8px;align-items:center}
+.saved .open{flex:1;min-width:0;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:0;padding:6px 14px;white-space:normal;text-align:left}
+.saved .open span{font-weight:400;font-size:13px;color:var(--muted)}
+.saved .open.on span{color:inherit;opacity:.75}
+.storechip{display:inline-flex;gap:0}
+.storechip a{border-radius:10px 0 0 10px}
+.storechip button{border-radius:0 10px 10px 0;border-left:0;padding:0 12px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.card .ph{aspect-ratio:4/3;border-radius:8px;background:var(--plaster);display:grid;place-items:center;overflow:hidden}
+.card .ph img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.card b{font-size:14px;line-height:1.2;overflow-wrap:anywhere}
+.card span{font-size:12.5px;color:var(--muted);line-height:1.25;overflow-wrap:anywhere}
+.card .wrap{gap:6px;margin-top:auto}
+.card .btn{min-height:38px;padding:0 10px;font-size:14px;flex:1}
+.tag{display:inline-block;padding:1px 7px;border-radius:99px;border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--muted)}
+.tag.warn{border-color:var(--brass);color:var(--ink)}
+#photoBox{position:relative;height:230px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:14px;touch-action:none;
+  background:
+    linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 0 0/14px 14px,
+    linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 7px 7px/14px 14px,
+    var(--card)}
+#photoBox img{max-width:100%;max-height:228px;display:block;pointer-events:none;-webkit-user-drag:none}
+.erbox{position:absolute;border:2px dashed var(--danger);background:rgba(190,70,50,.3);pointer-events:none}
+.check{display:flex;align-items:center;gap:10px;font-weight:600;min-height:44px}
+.check input{width:22px;height:22px;accent-color:var(--spruce)}
+@media (min-width:900px){
+  #libSheet{background:none;justify-content:flex-end;align-items:stretch;pointer-events:none}
+  #libSheet .sheet{pointer-events:auto;max-width:420px;max-height:none;height:100%;border-radius:0;border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.18)}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Room Designer<small id="designName"></small></h1>
+  <button class="btn" id="menuBtn" type="button">Menu</button>
+  <button class="btn primary" id="saveBtn" type="button">Save picture</button>
+</header>
+<div id="bar2">
+  <nav id="tabs" aria-label="Rooms"></nav>
+  <button class="btn small" id="undo" type="button" disabled>Undo</button>
+</div>
+
+<input class="hide-input" type="file" id="roomFile" accept="image/*">
+<input class="hide-input" type="file" id="furnFile" accept="image/*">
+<input class="hide-input" type="file" id="backupFile" accept=".json,application/json">
+
+<main id="well" aria-label="Room">
+  <div id="stage">
+    <img id="room" alt="Room photo">
+    <div class="chip" id="chip" hidden>Sample room</div>
+    <button class="chip" id="sizeChip" type="button" data-stagebtn hidden>Set room size</button>
+    <div id="selbox">
+      <button id="rot" type="button" aria-label="Turn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3"/></svg>
+      </button>
+      <button id="handle" type="button" aria-label="Resize">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l10 10M3 8V3h5M13 8v5H8"/></svg>
+      </button>
+    </div>
+    <svg id="calSvg" hidden><line id="calLa" stroke="#E2B24C"/><line id="calLb" stroke="#8FD3F0"/></svg>
+    <div class="calH a" data-k="a" data-e="1" hidden>1</div><div class="calH a" data-k="a" data-e="2" hidden>1</div>
+    <div class="calH b" data-k="b" data-e="1" hidden>2</div><div class="calH b" data-k="b" data-e="2" hidden>2</div>
+  </div>
+</main>
+
+<footer>
+  <div id="cutRow" hidden>
+    <label for="tol">Background removal</label>
+    <input type="range" id="tol" min="6" max="90" step="2" value="26">
+  </div>
+  <div class="row" id="tray"></div>
+  <div class="row" id="actions" hidden>
+    <button class="btn" type="button" data-act="flip">Flip</button>
+    <button class="btn" type="button" data-act="fwd">To front</button>
+    <button class="btn" type="button" data-act="back">To back</button>
+    <button class="btn" type="button" data-act="copy">Copy</button>
+    <button class="btn" type="button" data-act="auto" aria-pressed="false">True size</button>
+    <button class="btn" type="button" data-act="cut" aria-pressed="false">Cut out</button>
+    <button class="btn" type="button" data-act="shadow" aria-pressed="false">Shadow</button>
+    <button class="btn" type="button" data-act="lock" aria-pressed="false">Lock</button>
+    <button class="btn" type="button" data-act="details">Details</button>
+    <button class="btn danger" type="button" data-act="remove">Remove</button>
+    <button class="btn primary" type="button" data-act="done">Done</button>
+  </div>
+  <div id="calBar" hidden>
+    <p id="calHelp"></p>
+    <div class="pair"><span class="dot a">1</span><input class="field" id="calLenA" type="text" inputmode="decimal" placeholder="Real length of line 1" autocomplete="off" aria-label="Real length of line 1"><span class="unit"></span></div>
+    <div class="pair" id="calRowB" hidden><span class="dot b">2</span><input class="field" id="calLenB" type="text" inputmode="decimal" placeholder="Real length of line 2" autocomplete="off" aria-label="Real length of line 2"><span class="unit"></span></div>
+    <div class="wrap">
+      <button class="btn primary" id="calDone" type="button">Done</button>
+      <button class="btn" id="calNear" type="button">Add a nearer line</button>
+      <button class="btn danger" id="calClear" type="button">Remove sizing</button>
+      <button class="btn" id="calCancel" type="button">Cancel</button>
+    </div>
+  </div>
+</footer>
+
+<div class="sheetWrap" id="libSheet" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="libTitle">
+    <div class="head"><h2 id="libTitle">Furniture</h2><button class="btn small" type="button" data-close>Close</button></div>
+    <button class="btn primary" id="addPiece" type="button">Add a piece</button>
+    <input class="field" id="libSearch" type="search" placeholder="Search by name or store" autocomplete="off" aria-label="Search furniture">
+    <div class="chips" id="typeChips"></div>
+    <div class="pair">
+      <select class="field" id="setSel" aria-label="Furniture set"></select>
+      <button class="btn" id="setPlace" type="button" hidden>Place all</button>
+      <button class="btn danger" id="setDel" type="button" hidden>Delete set</button>
+    </div>
+    <div id="grid"></div>
+    <button class="btn" id="setSave" type="button">Save this room's pieces as a set</button>
+    <div class="pair" id="setNameRow" hidden>
+      <input class="field" id="setName" type="text" maxlength="40" placeholder="Set name, like Cozy option" autocomplete="off" aria-label="Set name">
+      <button class="btn primary" id="setNameSave" type="button">Save</button>
+    </div>
+    <h3>Browse stores</h3>
+    <div class="wrap" id="stores"></div>
+    <div class="pair">
+      <input class="field" id="storeUrl" type="url" inputmode="url" placeholder="Add a favourite store, like ikea.com" autocomplete="off" aria-label="Favourite store website">
+      <button class="btn" id="storeAdd" type="button">Add</button>
+    </div>
+    <p>Stores open outside the app. Copy the product photo and its link there, then come back and tap Add a piece.</p>
+  </div>
+</div>
+
+<div class="sheetWrap" id="pieceSheet" hidden>
+  <form class="sheet" id="pieceForm" role="dialog" aria-modal="true" aria-labelledby="pieceTitle">
+    <h2 id="pieceTitle">Add a piece</h2>
+    <div id="photoBox">No photo yet</div>
+    <p id="eraseHint" hidden>Drag a box over anything that should not be there, like a badge or label, to erase it.</p>
+    <div class="wrap">
+      <label class="btn primary" for="furnFile" tabindex="0">Take or choose photo</label>
+      <button class="btn" type="button" id="undoErase" hidden>Undo erase</button>
+    </div>
+    <input class="field" id="pasteBox" type="text" placeholder="Copied a picture? Press and hold here, then Paste" autocomplete="off" aria-label="Paste a copied picture here">
+    <label class="check" id="cutLbl"><input type="checkbox" id="pCut"> Remove plain background</label>
+    <label class="lbl">Name<input class="field" id="pName" type="text" maxlength="60" autocomplete="off" placeholder="Like Green velvet sofa"></label>
+    <div class="pair">
+      <label class="lbl">Type<select class="field" id="pType"></select></label>
+      <label class="lbl">Where you found it<input class="field" id="pStore" type="text" maxlength="40" autocomplete="off" placeholder="Store or place"></label>
+    </div>
+    <label class="lbl">Link<input class="field" id="pLink" type="url" inputmode="url" autocomplete="off" placeholder="Paste the product page link"></label>
+    <div class="pair">
+      <label class="lbl">Width<input class="field" id="pW" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label class="lbl">Depth<input class="field" id="pD" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label class="lbl">Height<input class="field" id="pH" type="text" inputmode="decimal" autocomplete="off"></label>
+      <span class="unit" style="align-self:flex-end;padding-bottom:13px"></span>
+    </div>
+    <p>One number is enough. Tall pieces like lamps and shelves are sized by height, wide pieces like sofas by width. For round pieces, use the widest diameter as the width.</p>
+    <label class="lbl">Other measurements or notes<input class="field" id="pNotes" type="text" maxlength="200" autocomplete="off" placeholder="Like Base 11 in, shade 6 in"></label>
+    <div id="pSetsRow" hidden>
+      <h3 style="margin:0 0 6px">Sets</h3>
+      <div class="wrap" id="pSets"></div>
+    </div>
+    <div class="wrap">
+      <button class="btn primary" type="submit" id="pSavePlace">Save and place</button>
+      <button class="btn" type="button" id="pSave">Save</button>
+      <button class="btn danger" type="button" id="pDelete" hidden>Delete piece</button>
+      <button class="btn" type="button" id="pCancel">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<div class="sheetWrap" id="menuSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <h2 id="menuTitle">Menu</h2>
+    <h3>This room</h3>
+    <input class="field" id="roomName" type="text" maxlength="40" autocomplete="off" aria-label="Room name">
+    <div class="wrap">
+      <label class="btn" for="roomFile" data-mode="replace" tabindex="0">Change photo</label>
+      <button class="btn" id="sizeRoom" type="button">Set room size</button>
+      <button class="btn" id="resetRoom" type="button">Reset room</button>
+      <button class="btn danger" id="deleteRoom" type="button">Delete room</button>
+    </div>
+    <h3>This design</h3>
+    <input class="field" id="designInput" type="text" maxlength="60" autocomplete="off" aria-label="Design name">
+    <div class="wrap">
+      <button class="btn" id="newDesign" type="button">New design</button>
+      <button class="btn" id="backup" type="button">Back up to a file</button>
+      <label class="btn" for="backupFile" tabindex="0">Open a backup</label>
+    </div>
+    <h3>Measurements</h3>
+    <div class="wrap">
+      <button class="btn" type="button" data-unit="in">Inches</button>
+      <button class="btn" type="button" data-unit="cm">Centimetres</button>
+    </div>
+    <h3>Saved designs</h3>
+    <div id="savedList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <p>Designs and furniture save as you go, on this device only. Back up the designs you care about.</p>
+    <button class="btn" type="button" data-close>Close</button>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const well=$('#well'),stage=$('#stage'),roomImg=$('#room'),selbox=$('#selbox'),tray=$('#tray'),actions=$('#actions'),
+      cutRow=$('#cutRow'),tolInput=$('#tol'),undoBtn=$('#undo'),chip=$('#chip'),sizeChip=$('#sizeChip'),tabs=$('#tabs'),
+      calBar=$('#calBar'),calSvg=$('#calSvg'),libSheet=$('#libSheet'),pieceSheet=$('#pieceSheet'),menuSheet=$('#menuSheet');
+const SHEETS=[libSheet,pieceSheet,menuSheet];
+const TYPES=['Sofa','Chair','Coffee table','Side table','TV stand','Storage','Dining','Bed','Rug','Lighting','Pillows and throws','Decor','Plant','Other'];
+const uid=()=>Math.random().toString(36).slice(2,10);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const svgURI=s=>'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);
+function h(tag,attrs,...kids){
+  const e=document.createElement(tag);
+  for(const k in attrs||{}){const v=attrs[k];
+    if(k==='class')e.className=v;else if(k==='text')e.textContent=v;
+    else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);
+    else if(v!==false&&v!=null)e.setAttribute(k,v===true?'':v);}
+  for(const c of kids)if(c)e.append(c);
+  return e;
+}
+
+let D=null;               // open design: {id,name,updated,cur,rooms:[{id,name,room:{src,w,h},cal,items:[]}]}
+let index=[];             // saved designs: [{id,name,updated,rooms}]
+const lib=new Map();      // furniture library: id -> piece
+let sets=[];              // [{id,name,ids:[]}]
+let unit='in';
+let selId=null,history=[],W=0,H=0;
+let calMode=false,calDraft=null;
+const els=new Map();      // item id -> element
+const pix=new Map();      // piece id -> ImageData of the original picture
+const imgCache=new WeakMap();
+const R=()=>D.rooms.find(r=>r.id===D.cur)||D.rooms[0];
+const P=id=>lib.get(id);
+const pv=p=>(p.useCut&&p.cut)?p.cut:p.orig;
+const hasSize=p=>p.w>0||p.h>0;
+
+/* ---------- Sample content ---------- */
+function sampleDesign(name){
+  const rid=uid(),it=(a,x,y)=>({id:uid(),a,x,y,s:.1,r:0,f:false,sh:true,auto:true,lk:false});
+  return {id:uid(),name:name||'My first design',updated:Date.now(),cur:rid,rooms:[{
+    id:rid,name:'Sample room',room:{src:'sample-room.jpg',w:1672,h:941,sample:true},
+    cal:{a:{x1:.359,y1:.672,x2:.727,y2:.672,len:101},b:{x1:.391,y1:.85,x2:.652,y2:.85,len:40}},
+    items:[it('lamp',.17,.485),it('plant',.755,.54)].filter(i=>lib.has(i.a))
+  }]};
+}
+
+/* ---------- Storage (this browser only) ---------- */
+let dbP=null;
+function idb(){
+  if(!dbP)dbP=new Promise((res,rej)=>{
+    const t=setTimeout(()=>rej(new Error('timeout')),1500);
+    try{
+      const q=indexedDB.open('room-designer',1);
+      q.onupgradeneeded=()=>q.result.createObjectStore('kv');
+      q.onsuccess=()=>{clearTimeout(t);res(q.result);};
+      q.onerror=q.onblocked=()=>{clearTimeout(t);rej(q.error||new Error('blocked'));};
+    }catch(e){clearTimeout(t);rej(e);}
+  });
+  return dbP;
+}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function idbAll(prefix){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').getAll(IDBKeyRange.bound(prefix,prefix+'￿'));q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error);});}
+async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function idbDel(k){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+let saveTimer=0,warned=false;
+function storeFail(){if(!warned){warned=true;toast('Changes could not be saved on this device.');}}
+async function persist(){
+  saveTimer=0;D.updated=Date.now();
+  index=index.filter(x=>x.id!==D.id);
+  index.unshift({id:D.id,name:D.name,updated:D.updated,rooms:D.rooms.length});
+  try{await idbSet('d:'+D.id,D);await idbSet('index',index);await idbSet('last',D.id);}catch(e){storeFail();}
+}
+function save(){clearTimeout(saveTimer);saveTimer=setTimeout(persist,500);}
+async function flush(){if(saveTimer){clearTimeout(saveTimer);await persist();}}
+const savePiece=p=>idbSet('p:'+p.id,p).catch(storeFail);
+const saveSets=()=>idbSet('sets',sets).catch(storeFail);
+
+/* ---------- Helpers ---------- */
+let toastTimer=0;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000);}
+function loadImg(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('image'));im.src=src;});}
+function imgOf(v){let p=imgCache.get(v);if(!p){p=loadImg(v.src);imgCache.set(v,p);}return p;}
+function makeCanvas(w,h){const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));return c;}
+async function fileToCanvas(file,max){
+  const url=URL.createObjectURL(file);
+  try{
+    const im=await loadImg(url);
+    const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));
+    const c=makeCanvas(im.naturalWidth*k,im.naturalHeight*k);
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    return c;
+  }finally{URL.revokeObjectURL(url);}
+}
+const sel=()=>R().items.find(i=>i.id===selId)||null;
+function remember(){history.push(JSON.stringify({rid:R().id,items:R().items}));if(history.length>60)history.shift();undoBtn.disabled=false;}
+function clearHistory(){history=[];undoBtn.disabled=true;}
+function undo(){
+  if(calMode)return;
+  let o=null,room=null;
+  while(history.length&&!room){o=JSON.parse(history.pop());room=D.rooms.find(r=>r.id===o.rid);}
+  undoBtn.disabled=!history.length;
+  if(!room)return;
+  room.items=o.items.filter(i=>lib.has(i.a));D.cur=room.id;selId=null;
+  renderTabs();renderTray();layout();save();
+}
+function confirmTap(btn,fn){
+  if(btn._armed){clearTimeout(btn._t);btn._armed=false;btn.textContent=btn._label;fn();return;}
+  btn._label=btn.textContent;btn._armed=true;btn.textContent='Tap again to confirm';
+  btn._t=setTimeout(()=>{btn._armed=false;btn.textContent=btn._label;},3000);
+}
+const toUnit=v=>unit==='cm'?v*2.54:v;
+const fromUnit=v=>unit==='cm'?v/2.54:v;
+const fmt=v=>String(Math.round(toUnit(v)*10)/10);
+function readNum(inp){const v=parseFloat(String(inp.value).replace(',','.'));return v>0?fromUnit(v):null;}
+function dimText(p){
+  const parts=[p.w,p.d,p.h].filter(v=>v>0).map(fmt);
+  return parts.length?parts.join(' × ')+' '+unit:'';
+}
+function setUnit(u){
+  unit=u;idbSet('unit',u).catch(()=>{});
+  for(const e of document.querySelectorAll('.unit'))e.textContent=unit;
+  for(const b of document.querySelectorAll('[data-unit]'))b.classList.toggle('on',b.dataset.unit===unit);
+}
+
+/* ---------- True-to-size maths ---------- */
+// A measured line gives "share of photo width per inch" at the depth where it touches the floor.
+// With two lines at different depths, that scale changes in a straight line down the photo.
+function rho(l,r){return Math.hypot(l.x2-l.x1,(l.y2-l.y1)*r.h/r.w)/l.len;}
+function scaleAt(rm,y){
+  const c=rm.cal;if(!c||!c.a||!(c.a.len>0))return 0;
+  const r=rm.room,pa=rho(c.a,r);
+  if(!c.b||!(c.b.len>0))return pa;
+  const ya=Math.max(c.a.y1,c.a.y2),yb=Math.max(c.b.y1,c.b.y2),pb=rho(c.b,r);
+  if(Math.abs(yb-ya)<.03)return pa;
+  return clamp(pa+(pb-pa)*(y-ya)/(yb-ya),Math.min(pa,pb),Math.max(pa,pb)*3);
+}
+const sized=rm=>scaleAt(rm,.5)>0;
+const effAuto=(it,rm)=>it.auto!==false&&sized(rm)&&hasSize(P(it.a));
+function trueS(it,rm){
+  const p=P(it.a),v=pv(p),asp=v.h/v.w,ar=rm.room.w/rm.room.h;let dw;
+  const byH=p.h>0&&(asp>=1||!(p.w>0));
+  if(!byH){dw=p.w*scaleAt(rm,it.y);for(let i=0;i<5;i++)dw=p.w*scaleAt(rm,it.y+dw*asp*ar/2);}
+  else{let dh=p.h*scaleAt(rm,it.y);for(let i=0;i<5;i++)dh=p.h*scaleAt(rm,it.y+dh*ar/2);dw=dh/asp;}
+  return clamp(dw*p.orig.w/v.w,.004,6);
+}
+const dispW=it=>{const p=P(it.a);return it.s*pv(p).w/p.orig.w;};
+
+/* ---------- Background removal ---------- */
+function borderStats(d,w,h,tol){
+  const idx=[];
+  for(let x=0;x<w;x++){idx.push(x,(h-1)*w+x);}
+  for(let y=0;y<h;y++){idx.push(y*w,y*w+w-1);}
+  const bins=new Map();
+  for(const i of idx){
+    const o=i*4;if(d[o+3]<9)continue;
+    const k=((d[o]>>4)<<8)|((d[o+1]>>4)<<4)|(d[o+2]>>4);
+    let q=bins.get(k);if(!q){q=[0,0,0,0];bins.set(k,q);}
+    q[0]+=d[o];q[1]+=d[o+1];q[2]+=d[o+2];q[3]++;
+  }
+  let best=null;for(const q of bins.values())if(!best||q[3]>best[3])best=q;
+  if(!best)return {r:255,g:255,b:255,share:0,idx};
+  const r=best[0]/best[3],g=best[1]/best[3],b=best[2]/best[3],t=tol||26,t2=t*t*3;let n=0;
+  for(const i of idx){const o=i*4;const dr=d[o]-r,dg=d[o+1]-g,db=d[o+2]-b;if(dr*dr+dg*dg+db*db<=t2)n++;}
+  return {r,g,b,share:n/idx.length,idx};
+}
+function makeCut(src,tol){
+  const w=src.width,hh=src.height,n=w*hh,d=new Uint8ClampedArray(src.data);
+  const st=borderStats(d,w,hh,tol),t2=tol*tol*3;
+  const seen=new Uint8Array(n),stack=new Int32Array(n);let sp=0;
+  const push=i=>{
+    if(seen[i])return;const o=i*4;
+    if(d[o+3]>8){const dr=d[o]-st.r,dg=d[o+1]-st.g,db=d[o+2]-st.b;if(dr*dr+dg*dg+db*db>t2)return;}
+    seen[i]=1;stack[sp++]=i;
+  };
+  for(const i of st.idx)push(i);
+  while(sp){const i=stack[--sp],x=i%w;if(x>0)push(i-1);if(x<w-1)push(i+1);if(i>=w)push(i-w);if(i<n-w)push(i+w);}
+  let x0=w,y0=hh,x1=-1,y1=-1,left=0;
+  for(let i=0;i<n;i++){
+    const o=i*4;
+    if(seen[i]){d[o+3]=0;continue;}
+    if(d[o+3]<9)continue;
+    const x=i%w,y=(i-x)/w;
+    if((x>0&&seen[i-1])||(x<w-1&&seen[i+1])||(y>0&&seen[i-w])||(y<hh-1&&seen[i+w]))d[o+3]=d[o+3]*.5;
+    left++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+  }
+  if(left<n*.02||left>n*.985)return null;
+  const full=makeCanvas(w,hh);full.getContext('2d').putImageData(new ImageData(d,w,hh),0,0);
+  const bw=x1-x0+1,bh=y1-y0+1,c=makeCanvas(bw,bh);
+  c.getContext('2d').drawImage(full,x0,y0,bw,bh,0,0,bw,bh);
+  return {src:c.toDataURL('image/png'),w:bw,h:bh,ox:x0,oy:y0};
+}
+async function pixelsFor(key,orig){
+  let p=pix.get(key);
+  if(!p){
+    const im=await imgOf(orig);const c=makeCanvas(orig.w,orig.h);const x=c.getContext('2d');
+    x.drawImage(im,0,0,c.width,c.height);p=x.getImageData(0,0,c.width,c.height);pix.set(key,p);
+  }
+  return p;
+}
+async function recut(p,tol){
+  const cut=makeCut(await pixelsFor(p.id,p.orig),tol);
+  if(!cut)return false;
+  p.cut=cut;p.tol=tol;return true;
+}
+async function processPhoto(file){
+  const c=await fileToCanvas(file,900);
+  const data=c.getContext('2d').getImageData(0,0,c.width,c.height),d=data.data;
+  let alpha=false;for(let i=3;i<d.length;i+=64){if(d[i]<250){alpha=true;break;}}
+  const out={orig:{src:c.toDataURL(alpha?'image/png':'image/jpeg',.88),w:c.width,h:c.height},cut:null,useCut:false,tol:26,data,alpha};
+  if(!alpha&&borderStats(d,c.width,c.height,26).share>=.6){const cut=makeCut(data,26);if(cut){out.cut=cut;out.useCut=true;}}
+  return out;
+}
+
+/* ---------- Rooms ---------- */
+let roomMode='new';
+async function setRoomPhoto(file){
+  try{
+    const c=await fileToCanvas(file,2200);
+    const photo={src:c.toDataURL('image/jpeg',.9),w:c.width,h:c.height};
+    const r=R();
+    if(r.room.sample){
+      r.items=r.items.filter(i=>!P(i.a).sample);
+      r.room=photo;r.cal=null;if(r.name==='Sample room')r.name='Room 1';
+      clearHistory();
+    }else if(roomMode==='new'){
+      const nr={id:uid(),name:'Room '+(D.rooms.length+1),room:photo,cal:null,items:[]};
+      D.rooms.push(nr);D.cur=nr.id;
+    }else{r.room=photo;r.cal=null;}
+    selId=null;closeSheets();renderAll();save();
+    toast('Photo added. Tap Set room size so furniture comes in true to size.');
+  }catch(e){toast('That photo could not be opened. Try a JPG or PNG.');}
+}
+function renderTabs(){
+  tabs.textContent='';
+  for(const rm of D.rooms){
+    const cur=rm.id===R().id;
+    tabs.append(h('button',{type:'button',class:'btn small'+(cur?' on':''),'data-room':rm.id,'aria-current':cur?'true':null,text:rm.name||'Room'}));
+  }
+  const sample=R().room.sample;
+  tabs.append(h('label',{class:'btn small'+(sample?' primary':''),for:'roomFile','data-mode':'new',tabindex:'0',text:sample?'Add your photo':'Add room'}));
+  $('#designName').textContent=D.name;
+}
+tabs.addEventListener('click',e=>{
+  const b=e.target.closest('[data-room]');if(!b||b.dataset.room===D.cur||calMode)return;
+  D.cur=b.dataset.room;selId=null;renderTabs();layout();save();
+});
+
+/* ---------- Placing furniture ---------- */
+function place(p){
+  const rm=R(),v=pv(p),items=rm.items,n=items.length%5;
+  const dw=Math.min(.34,.42*(rm.room.h/rm.room.w)*(v.w/v.h));
+  const it={id:uid(),a:p.id,x:.5+n*.03,y:.62+n*.02,s:dw*p.orig.w/v.w,r:0,f:false,sh:true,auto:true,lk:false};
+  items.push(it);selId=it.id;
+}
+function placeNow(p){
+  if(calMode)exitCal();
+  remember();place(p);renderTray();render();save();
+  const rm=R();
+  if(!hasSize(p))toast('Placed. Add its size in Details to make it true to scale.');
+  else if(!sized(rm))toast('Placed. Set the room size to make it true to scale.');
+}
+async function quickAdd(file){
+  try{
+    const ph=await processPhoto(file);
+    const p={id:uid(),name:'Untitled piece',type:'Other',store:'',link:'',w:null,d:null,h:null,added:Date.now(),
+             orig:ph.orig,cut:ph.cut,useCut:ph.useCut,tol:ph.tol};
+    pix.set(p.id,ph.data);lib.set(p.id,p);savePiece(p);placeNow(p);
+  }catch(e){toast('That picture could not be opened. Try a JPG or PNG.');}
+}
+
+/* ---------- Drawing the screen ---------- */
+function layout(){
+  const r=R().room;
+  const pw=well.clientWidth-36,ph=well.clientHeight-16;if(pw<=0||ph<=0)return;
+  const k=Math.min(pw/r.w,ph/r.h);W=r.w*k;H=r.h*k;
+  stage.style.width=W+'px';stage.style.height=H+'px';
+  render();
+}
+function render(){
+  const rm=R(),r=rm.room;
+  if(roomImg._v!==r){roomImg.src=r.src;roomImg._v=r;}
+  chip.hidden=!r.sample;
+  sizeChip.hidden=calMode||sized(rm);
+  const keep=new Set();
+  rm.items.forEach((it,idx)=>{
+    const p=P(it.a);if(!p)return;
+    let el=els.get(it.id);
+    if(!el){
+      el=h('div',{class:'item','data-id':it.id},h('div',{class:'csh'}),h('img',{alt:'',draggable:'false'}));el._sh=el.firstChild;el._im=el.lastChild;
+      els.set(it.id,el);stage.insertBefore(el,selbox);
+    }
+    keep.add(it.id);
+    if(effAuto(it,rm))it.s=trueS(it,rm);
+    const v=pv(p),im=el._im;
+    if(im._v!==v){im.src=v.src;im._v=v;}
+    const w=dispW(it)*W,hh=w*v.h/v.w;
+    el.style.left=it.x*W+'px';el.style.top=it.y*H+'px';el.style.width=w+'px';el.style.height=hh+'px';el.style.zIndex=idx+1;
+    el.style.filter=it.sh?`drop-shadow(0 ${(W*.012).toFixed(1)}px ${(W*.016).toFixed(1)}px rgba(0,0,0,.4))`:'';
+    im.style.transform=`rotate(${it.r}rad) scaleX(${it.f?-1:1})`;
+    const eh=Math.max(w*.18,W*.008);el._sh.style.display=it.sh?'':'none';el._sh.style.height=eh+'px';el._sh.style.bottom=(-eh/2)+'px';
+  });
+  for(const [id,el] of els){if(!keep.has(id)){el.remove();els.delete(id);}}
+  const s=calMode?null:sel();
+  if(s){
+    const v=pv(P(s.a)),w=dispW(s)*W,hh=w*v.h/v.w;
+    selbox.style.display='block';selbox.style.left=s.x*W+'px';selbox.style.top=s.y*H+'px';
+    selbox.style.width=w+'px';selbox.style.height=hh+'px';
+    selbox.style.transform=`translate(-50%,-50%) rotate(${s.r}rad)`;
+    selbox.classList.toggle('locked',!!s.lk);$('#handle').hidden=effAuto(s,rm);
+  }else selbox.style.display='none';
+  calBar.hidden=!calMode;actions.hidden=!s;tray.hidden=!!s||calMode;
+  cutRow.hidden=!(s&&!s.lk&&P(s.a).useCut&&P(s.a).cut);
+  if(s){
+    const p=P(s.a),B=a=>actions.querySelector(`[data-act="${a}"]`);
+    const tog=(a,on)=>{const b=B(a);b.classList.toggle('on',!!on);b.setAttribute('aria-pressed',String(!!on));};
+    for(const b of actions.querySelectorAll('[data-act]'))b.disabled=!!s.lk&&!['lock','done','details'].includes(b.dataset.act);
+    tog('cut',p.useCut&&p.cut);tog('shadow',s.sh);tog('lock',s.lk);tog('auto',effAuto(s,rm));
+    B('lock').textContent=s.lk?'Unlock':'Lock';
+    B('auto').hidden=!(sized(rm)&&hasSize(p));
+    if(!cutRow.hidden&&document.activeElement!==tolInput)tolInput.value=p.tol;
+  }
+  renderCal();
+}
+function renderTray(){
+  tray.textContent='';
+  tray.append(h('button',{type:'button',class:'btn primary addbtn',onclick:()=>openSheet(libSheet)},h('b',{text:'+'}),h('span',{text:'Furniture'})));
+  const used=[];
+  for(const rm of D.rooms)for(const it of rm.items){const p=P(it.a);if(p&&!used.includes(p))used.push(p);}
+  for(const p of used){
+    tray.append(h('button',{type:'button',class:'thumb','aria-label':'Place another '+p.name,onclick:()=>placeNow(p)},h('img',{alt:'',src:pv(p).src})));
+  }
+  if(!used.length)tray.append(h('span',{class:'hint',text:'Tap Furniture to add your first piece.'}));
+}
+function renderAll(){selId=null;renderTabs();renderTray();layout();}
+
+/* ---------- Room sizing ---------- */
+function enterCal(){
+  closeSheets();selId=null;calMode=true;
+  const c=R().cal;
+  calDraft=c?JSON.parse(JSON.stringify(c)):{a:{x1:.3,y1:.66,x2:.7,y2:.66,len:0},b:null};
+  $('#calLenA').value=calDraft.a.len>0?fmt(calDraft.a.len):'';
+  $('#calLenB').value=calDraft.b&&calDraft.b.len>0?fmt(calDraft.b.len):'';
+  $('#calClear').hidden=!c;
+  render();
+}
+function exitCal(){calMode=false;calDraft=null;render();}
+function renderCal(){
+  const on=calMode&&calDraft;
+  calSvg.hidden=!on;
+  for(const hd of stage.querySelectorAll('.calH')){
+    const l=on?calDraft[hd.dataset.k]:null;hd.hidden=!l;
+    if(l){hd.style.left=l['x'+hd.dataset.e]*W+'px';hd.style.top=l['y'+hd.dataset.e]*H+'px';}
+  }
+  if(!on)return;
+  const setL=(el,l)=>{el.style.display=l?'':'none';if(l){el.setAttribute('x1',l.x1*W);el.setAttribute('y1',l.y1*H);el.setAttribute('x2',l.x2*W);el.setAttribute('y2',l.y2*H);}};
+  setL($('#calLa'),calDraft.a);setL($('#calLb'),calDraft.b);
+  $('#calRowB').hidden=!calDraft.b;
+  $('#calNear').textContent=calDraft.b?'Remove nearer line':'Add a nearer line';
+  $('#calHelp').textContent=calDraft.b
+    ?'Line 2 goes along the bottom of something nearer the camera, like a rug edge or coffee table. Pieces then grow as they come forward.'
+    :'Drag line 1 along the bottom of something against the far wall, where it meets the floor, like a TV stand or a doorway. Then type its real length.';
+}
+$('#calNear').addEventListener('click',()=>{
+  calDraft.b=calDraft.b?null:{x1:.3,y1:.88,x2:.7,y2:.88,len:0};if(!calDraft.b)$('#calLenB').value='';renderCal();
+});
+$('#calCancel').addEventListener('click',exitCal);
+$('#calClear').addEventListener('click',e=>confirmTap(e.currentTarget,()=>{R().cal=null;exitCal();save();}));
+$('#calDone').addEventListener('click',()=>{
+  const la=readNum($('#calLenA'));
+  if(!la){toast('Type the real length of line 1.');return;}
+  calDraft.a.len=la;
+  if(Math.hypot(calDraft.a.x2-calDraft.a.x1,calDraft.a.y2-calDraft.a.y1)<.02){toast('Line 1 is too short. Drag its ends apart.');return;}
+  if(calDraft.b){
+    const lb=readNum($('#calLenB'));
+    if(!lb){toast('Type the real length of line 2, or remove it.');return;}
+    calDraft.b.len=lb;
+    if(Math.abs(Math.max(calDraft.b.y1,calDraft.b.y2)-Math.max(calDraft.a.y1,calDraft.a.y2))<.03){toast('Line 2 needs to sit lower in the photo than line 1.');return;}
+  }
+  R().cal=calDraft;exitCal();save();
+  toast('Room size set. Pieces with a size now come in true to scale.');
+});
+sizeChip.addEventListener('click',enterCal);
+$('#sizeRoom').addEventListener('click',enterCal);
+
+/* ---------- Touch and mouse ---------- */
+const ptrs=new Map();let g=null;
+const centerOf=it=>{const r=stage.getBoundingClientRect();return {x:r.left+it.x*W,y:r.top+it.y*H};};
+const snapAngle=r=>{const q=Math.PI/2,n=Math.round(r/q)*q;return Math.abs(r-n)<.14?n:r;};
+const wrapA=a=>Math.atan2(Math.sin(a),Math.cos(a));
+function startDrag(x,y,dirty){const it=sel();g={mode:'drag',px:x,py:y,x0:it.x,y0:it.y,dirty:!!dirty};}
+function startPinch(dirty){
+  const it=sel(),[p,q]=[...ptrs.values()];
+  g={mode:'pinch',d0:Math.hypot(q.x-p.x,q.y-p.y)||1,a0:Math.atan2(q.y-p.y,q.x-p.x),mx:(p.x+q.x)/2,my:(p.y+q.y)/2,
+     x0:it.x,y0:it.y,s0:it.s,r0:it.r,dirty:!!dirty};
+}
+function touch(){if(!g.dirty){remember();g.dirty=true;}}
+well.addEventListener('pointerdown',e=>{
+  if(e.button>0||e.target.closest('[data-stagebtn]'))return;
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  try{well.setPointerCapture(e.pointerId);}catch(_){}
+  e.preventDefault();
+  if(calMode){
+    const hd=e.target.closest('.calH');
+    g=(hd&&ptrs.size===1)?{mode:'cal',k:hd.dataset.k,e:hd.dataset.e}:null;
+    return;
+  }
+  const onHandle=e.target.closest('#handle')||e.target.closest('#rot'),turn=!!e.target.closest('#rot'),itemEl=e.target.closest('.item');
+  if(ptrs.size===1){
+    if(onHandle&&sel()&&!sel().lk){
+      const it=sel(),c=centerOf(it);
+      g={mode:turn?'turn':'size',d0:Math.hypot(e.clientX-c.x,e.clientY-c.y)||1,a0:Math.atan2(e.clientY-c.y,e.clientX-c.x),s0:it.s,r0:it.r,dirty:false};
+    }else if(itemEl){
+      selId=itemEl.dataset.id;
+      if(sel().lk)g={mode:'hold'};else startDrag(e.clientX,e.clientY,false);
+      render();
+    }else g={mode:'tap',x:e.clientX,y:e.clientY,moved:false};
+  }else if(ptrs.size===2&&sel()&&!sel().lk){
+    startPinch(g&&g.dirty);
+  }
+});
+well.addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId))return;
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(!g||g.mode==='hold')return;
+  if(g.mode==='cal'){
+    const r=stage.getBoundingClientRect(),l=calDraft&&calDraft[g.k];if(!l)return;
+    l['x'+g.e]=clamp((e.clientX-r.left)/W,0,1);l['y'+g.e]=clamp((e.clientY-r.top)/H,0,1);renderCal();return;
+  }
+  if(g.mode==='tap'){if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>8)g.moved=true;return;}
+  const it=sel();if(!it)return;
+  const fixed=effAuto(it,R());
+  if(g.mode==='drag'){
+    const dx=e.clientX-g.px,dy=e.clientY-g.py;
+    if(!g.dirty&&Math.hypot(dx,dy)<3)return;
+    touch();it.x=clamp(g.x0+dx/W,-.25,1.25);it.y=clamp(g.y0+dy/H,-.25,1.25);
+  }else if(g.mode==='size'||g.mode==='turn'){
+    const c=centerOf(it),d=Math.hypot(e.clientX-c.x,e.clientY-c.y),a=Math.atan2(e.clientY-c.y,e.clientX-c.x);
+    if(g.mode==='size'){if(fixed)return;touch();it.s=clamp(g.s0*d/g.d0,.01,6);}
+    else{touch();it.r=snapAngle(g.r0+wrapA(a-g.a0));}
+  }else if(g.mode==='pinch'){
+    const [p,q]=[...ptrs.values()];if(!q)return;
+    const d=Math.hypot(q.x-p.x,q.y-p.y),a=Math.atan2(q.y-p.y,q.x-p.x);
+    touch();if(!fixed)it.s=clamp(g.s0*d/g.d0,.01,6);
+    const da=wrapA(a-g.a0);
+    if(!g.twist&&Math.abs(da)>.35){g.twist=true;g.aOff=da;}   // two fingers only turn a piece after a deliberate twist
+    if(g.twist)it.r=snapAngle(g.r0+da-g.aOff);
+    it.x=clamp(g.x0+((p.x+q.x)/2-g.mx)/W,-.25,1.25);it.y=clamp(g.y0+((p.y+q.y)/2-g.my)/H,-.25,1.25);
+  }
+  render();
+});
+function endPtr(e){
+  if(!ptrs.has(e.pointerId))return;
+  ptrs.delete(e.pointerId);
+  if(!g)return;
+  if(g.mode==='tap'){
+    if(ptrs.size===0){if(!g.moved&&selId){selId=null;render();}g=null;}
+    return;
+  }
+  if(g.mode==='cal'||g.mode==='hold'){if(ptrs.size===0)g=null;return;}
+  const dirty=g.dirty;
+  if(dirty)save();
+  if(ptrs.size===1&&sel()){const [p]=[...ptrs.values()];startDrag(p.x,p.y,dirty);}
+  else if(ptrs.size===0)g=null;
+}
+well.addEventListener('pointerup',endPtr);
+well.addEventListener('pointercancel',endPtr);
+document.addEventListener('gesturestart',e=>e.preventDefault());
+well.addEventListener('dragover',e=>e.preventDefault());
+well.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer)takeFiles(e.dataTransfer.files);});
+
+/* ---------- Buttons for the selected piece ---------- */
+actions.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  const it=sel();if(!it)return;
+  const rm=R(),items=rm.items,act=b.dataset.act,i=items.indexOf(it),p=P(it.a);
+  if(act==='done'){selId=null;render();return;}
+  if(act==='details'){openPiece(p.id);return;}
+  if(act==='cut'){
+    if(p.useCut&&p.cut)p.useCut=false;
+    else{
+      if(!p.cut){
+        let ok=false;try{ok=await recut(p,p.tol);}catch(_){}
+        if(!ok){toast('No plain background found on this picture.');return;}
+      }
+      p.useCut=true;
+    }
+    savePiece(p);renderTray();render();save();return;
+  }
+  if(act==='fwd'||act==='back'){
+    const edge=act==='fwd'?items.length-1:0;
+    if(items.length<2){toast('This is the only piece in the room.');return;}
+    if(i===edge){toast(act==='fwd'?'Already in front of everything.':'Already behind everything.');return;}
+    remember();items.splice(i,1);if(act==='fwd')items.push(it);else items.unshift(it);
+    render();save();toast(act==='fwd'?'Moved in front of the other pieces.':'Moved behind the other pieces.');return;
+  }
+  remember();
+  if(act==='flip')it.f=!it.f;
+  else if(act==='shadow')it.sh=!it.sh;
+  else if(act==='lock')it.lk=!it.lk;
+  else if(act==='auto'){it.auto=!effAuto(it,rm);if(!it.auto)toast('Now sized by hand. Tap True size to snap back.');}
+  else if(act==='copy'){const c=Object.assign({},it,{id:uid(),lk:false,x:clamp(it.x+.05,0,1),y:clamp(it.y+.04,0,1)});items.push(c);selId=c.id;}
+  else if(act==='remove'){items.splice(i,1);selId=null;renderTray();}
+  render();save();
+});
+let tolTimer=0;
+tolInput.addEventListener('input',()=>{
+  clearTimeout(tolTimer);
+  tolTimer=setTimeout(async()=>{
+    const it=sel();if(!it)return;
+    const p=P(it.a);if(!p.useCut)return;
+    let ok=false;try{ok=await recut(p,+tolInput.value);}catch(_){}
+    if(!ok){toast('Nothing would be left at that setting.');tolInput.value=p.tol;return;}
+    savePiece(p);renderTray();render();
+  },140);
+});
+undoBtn.addEventListener('click',undo);
+
+/* ---------- File pickers and paste ---------- */
+function takeFiles(files){
+  const list=[...(files||[])].filter(f=>f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(f.name||''));
+  if(!list.length)return false;
+  if(!pieceSheet.hidden)setDraftPhoto(list[0]);
+  else{closeSheets();(async()=>{for(const f of list)await quickAdd(f);})();}
+  return true;
+}
+$('#roomFile').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f){if(calMode)exitCal();setRoomPhoto(f);}});
+$('#furnFile').addEventListener('change',e=>{const fs=[...e.target.files];e.target.value='';takeFiles(fs);});
+$('#backupFile').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)openBackup(f);});
+document.addEventListener('click',e=>{const l=e.target.closest('label[data-mode]');if(l)roomMode=l.dataset.mode;},true);
+document.addEventListener('keydown',e=>{
+  const l=e.target.closest&&e.target.closest('label.btn');
+  if(l&&(e.key==='Enter'||e.key===' ')){e.preventDefault();if(l.dataset.mode)roomMode=l.dataset.mode;document.getElementById(l.htmlFor).click();}
+});
+$('#pasteBox').addEventListener('input',e=>{e.target.value='';});
+document.addEventListener('paste',e=>{
+  const cd=e.clipboardData;if(!cd)return;
+  let files=[...(cd.files||[])];
+  if(!files.length&&cd.items){for(const it of cd.items){if(it.kind==='file'){const f=it.getAsFile();if(f)files.push(f);}}}
+  if(takeFiles(files)){e.preventDefault();return;}
+  if(e.target&&e.target.id==='pasteBox')toast('No picture was found. Copy the picture itself, then paste.');
+});
+
+/* ---------- Sheets ---------- */
+function openSheet(s){
+  if(calMode)exitCal();
+  closeSheets();s.hidden=false;
+  if(s===menuSheet)renderMenu();
+  if(s===libSheet){renderLib();renderStores();}
+}
+function closeSheets(){for(const s of SHEETS)s.hidden=true;$('#setNameRow').hidden=true;}
+for(const s of [libSheet,menuSheet])s.addEventListener('click',e=>{if(e.target===s||e.target.closest('[data-close]'))closeSheets();});
+$('#menuBtn').addEventListener('click',()=>openSheet(menuSheet));
+
+/* ---------- Furniture library ---------- */
+let fType='All',fSet='';
+function renderLib(){
+  const chips=$('#typeChips');chips.textContent='';
+  const present=new Set([...lib.values()].map(p=>p.type));
+  for(const t of ['All'].concat(TYPES.filter(t=>present.has(t)))){
+    chips.append(h('button',{type:'button',class:'btn small'+(fType===t?' on':''),text:t,onclick:()=>{fType=t;renderLib();}}));
+  }
+  if(fType!=='All'&&!present.has(fType))fType='All';
+  const ss=$('#setSel');ss.textContent='';
+  ss.append(h('option',{value:'',text:'All pieces'}));
+  for(const s of sets)ss.append(h('option',{value:s.id,text:'Set: '+s.name}));
+  if(!sets.some(s=>s.id===fSet))fSet='';
+  ss.value=fSet;ss.hidden=!sets.length;
+  const set=sets.find(s=>s.id===fSet);
+  $('#setPlace').hidden=$('#setDel').hidden=!set;
+  const q=$('#libSearch').value.trim().toLowerCase();
+  const list=[...lib.values()].filter(p=>(fType==='All'||p.type===fType)&&(!set||set.ids.includes(p.id))&&
+    (!q||(p.name+' '+p.store+' '+p.type).toLowerCase().includes(q))).sort((a,b)=>(b.added||0)-(a.added||0));
+  const grid=$('#grid');grid.textContent='';
+  for(const p of list){
+    const dims=dimText(p);
+    grid.append(h('div',{class:'card'},
+      h('div',{class:'ph'},h('img',{alt:'',src:pv(p).src,loading:'lazy'})),
+      h('b',{text:p.name}),
+      h('span',{text:[p.type,p.store].filter(Boolean).join(' · ')}),
+      h('span',{},dims?document.createTextNode(dims):h('span',{class:'tag warn',text:'No size yet'}),p.sample?h('span',{class:'tag',text:'Sample',style:'margin-left:6px'}):null),
+      h('div',{class:'wrap'},
+        h('button',{type:'button',class:'btn primary',text:'Place',onclick:()=>{if(innerWidth<900)closeSheets();placeNow(p);}}),
+        h('button',{type:'button',class:'btn',text:'Edit',onclick:()=>openPiece(p.id)}),
+        p.link?h('a',{class:'btn',href:p.link,target:'_blank',rel:'noopener',text:'Store'}):null)));
+  }
+  if(!list.length)grid.append(h('p',{text:lib.size?'Nothing matches. Try another type or clear the search.':'No furniture yet. Tap Add a piece to start your list.'}));
+}
+$('#libSearch').addEventListener('input',renderLib);
+$('#setSel').addEventListener('change',e=>{fSet=e.target.value;renderLib();});
+$('#addPiece').addEventListener('click',()=>openPiece(null));
+$('#setPlace').addEventListener('click',()=>{
+  const set=sets.find(s=>s.id===fSet);if(!set)return;
+  const ps=set.ids.map(P).filter(Boolean);if(!ps.length){toast('This set is empty.');return;}
+  if(innerWidth<900)closeSheets();
+  remember();for(const p of ps)place(p);selId=null;renderTray();render();save();
+  toast('Placed '+ps.length+(ps.length===1?' piece.':' pieces.'));
+});
+$('#setDel').addEventListener('click',e=>confirmTap(e.currentTarget,()=>{sets=sets.filter(s=>s.id!==fSet);fSet='';saveSets();renderLib();}));
+$('#setSave').addEventListener('click',()=>{
+  const ids=[...new Set(R().items.map(i=>i.a))];
+  if(!ids.length){toast('Place some pieces in this room first.');return;}
+  $('#setNameRow').hidden=false;$('#setName').value='';$('#setName').focus();
+});
+function saveSetFromRoom(){
+  const name=$('#setName').value.trim();if(!name){toast('Give the set a name.');return;}
+  const ids=[...new Set(R().items.map(i=>i.a))];
+  const s={id:uid(),name,ids};sets.push(s);saveSets();fSet=s.id;$('#setNameRow').hidden=true;renderLib();
+  toast('Set saved with '+ids.length+(ids.length===1?' piece.':' pieces.'));
+}
+$('#setNameSave').addEventListener('click',saveSetFromRoom);
+$('#setName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();saveSetFromRoom();}});
+
+/* ---------- Add or edit a piece ---------- */
+let draft=null;
+function showDraftPhoto(){
+  const box=$('#photoBox');box.textContent='';
+  if(draft.orig)box.append(h('img',{alt:'Furniture photo',src:((draft.useCut&&draft.cut)?draft.cut:draft.orig).src}));
+  else box.textContent='No photo yet';
+  $('#pCut').checked=!!(draft.useCut&&draft.cut);
+  $('#cutLbl').hidden=!draft.orig;$('#eraseHint').hidden=!draft.orig;$('#undoErase').hidden=!draft.undo;
+}
+function openPiece(id){
+  const p=id?P(id):null;
+  if(calMode)exitCal();
+  draft=p?{id:p.id,orig:p.orig,cut:p.cut,useCut:p.useCut,tol:p.tol,data:pix.get(p.id)||null,sets:new Set(sets.filter(s=>s.ids.includes(p.id)).map(s=>s.id))}
+         :{id:null,orig:null,cut:null,useCut:false,tol:26,data:null,sets:new Set(fSet?[fSet]:[])};
+  closeSheets();pieceSheet.hidden=false;
+  $('#pieceTitle').textContent=p?'Edit piece':'Add a piece';
+  const ts=$('#pType');ts.textContent='';for(const t of TYPES)ts.append(h('option',{value:t,text:t}));
+  $('#pName').value=p?p.name:'';ts.value=p?p.type:(fType!=='All'?fType:'Other');
+  $('#pNotes').value=p&&p.notes?p.notes:'';$('#pStore').value=p?p.store:'';$('#pLink').value=p?p.link:'';
+  $('#pW').value=p&&p.w?fmt(p.w):'';$('#pD').value=p&&p.d?fmt(p.d):'';$('#pH').value=p&&p.h?fmt(p.h):'';
+  $('#pDelete').hidden=!p;$('#pasteBox').value='';
+  const row=$('#pSetsRow'),box=$('#pSets');row.hidden=!sets.length;box.textContent='';
+  for(const s of sets){
+    const b=h('button',{type:'button',class:'btn small'+(draft.sets.has(s.id)?' on':''),text:s.name,'aria-pressed':String(draft.sets.has(s.id))});
+    b.addEventListener('click',()=>{draft.sets.has(s.id)?draft.sets.delete(s.id):draft.sets.add(s.id);b.classList.toggle('on');b.setAttribute('aria-pressed',String(draft.sets.has(s.id)));});
+    box.append(b);
+  }
+  showDraftPhoto();
+}
+async function setDraftPhoto(file){
+  if(!draft)return;
+  try{
+    const ph=await processPhoto(file);
+    draft.orig=ph.orig;draft.cut=ph.cut;draft.useCut=ph.useCut;draft.tol=ph.tol;draft.data=ph.data;draft.newPhoto=true;
+    showDraftPhoto();
+    toast(ph.useCut?'Photo added. Background removed.':'Photo added.');
+  }catch(e){toast('That picture could not be opened. Try a JPG or PNG.');}
+}
+$('#pCut').addEventListener('change',async e=>{
+  if(!draft||!draft.orig)return;
+  if(e.target.checked&&!draft.cut){
+    try{
+      if(!draft.data)draft.data=await pixelsFor(draft.id||'draft',draft.orig);
+      draft.cut=makeCut(draft.data,draft.tol);
+    }catch(_){draft.cut=null;}
+    if(!draft.cut){toast('No plain background found on this picture.');e.target.checked=false;return;}
+  }
+  draft.useCut=e.target.checked;showDraftPhoto();
+});
+/* Erase part of the photo: drag a box on the preview */
+const photoBox=$('#photoBox');let er=null;
+photoBox.addEventListener('pointerdown',e=>{
+  if(!draft||!draft.orig||!photoBox.querySelector('img'))return;
+  e.preventDefault();try{photoBox.setPointerCapture(e.pointerId);}catch(_){}
+  er={id:e.pointerId,x:e.clientX,y:e.clientY,x2:e.clientX,y2:e.clientY,box:h('div',{class:'erbox'})};photoBox.append(er.box);
+});
+photoBox.addEventListener('pointermove',e=>{
+  if(!er||e.pointerId!==er.id)return;
+  er.x2=e.clientX;er.y2=e.clientY;
+  const r=photoBox.getBoundingClientRect(),b=er.box.style;
+  b.left=Math.min(er.x,er.x2)-r.left+'px';b.top=Math.min(er.y,er.y2)-r.top+'px';
+  b.width=Math.abs(er.x2-er.x)+'px';b.height=Math.abs(er.y2-er.y)+'px';
+});
+function endErase(e){
+  if(!er||e.pointerId!==er.id)return;
+  const q=er;er=null;q.box.remove();
+  if(e.type==='pointerup'&&Math.abs(q.x2-q.x)>6&&Math.abs(q.y2-q.y)>6)
+    eraseRect(Math.min(q.x,q.x2),Math.min(q.y,q.y2),Math.max(q.x,q.x2),Math.max(q.y,q.y2));
+}
+photoBox.addEventListener('pointerup',endErase);
+photoBox.addEventListener('pointercancel',endErase);
+async function eraseRect(x0,y0,x1,y1){
+  const im=photoBox.querySelector('img');if(!draft||!im)return;
+  try{
+    const r=im.getBoundingClientRect();
+    if(!draft.data)draft.data=await pixelsFor(draft.id||'draft',draft.orig);
+    let showCut=!!(draft.useCut&&draft.cut);
+    if(showCut&&draft.cut.ox===undefined){const c=makeCut(draft.data,draft.tol);if(c)draft.cut=c;else showCut=false;}
+    const v=showCut?draft.cut:draft.orig,ox=showCut?v.ox:0,oy=showCut?v.oy:0,src=draft.data,w=src.width,hh=src.height;
+    const fx=a=>clamp(Math.round(ox+(a-r.left)/r.width*v.w),0,w),fy=a=>clamp(Math.round(oy+(a-r.top)/r.height*v.h),0,hh);
+    const X0=fx(x0),X1=fx(x1),Y0=fy(y0),Y1=fy(y1);
+    if(X1<=X0||Y1<=Y0)return;
+    const d=new Uint8ClampedArray(src.data);
+    for(let y=Y0;y<Y1;y++)for(let x=X0;x<X1;x++)d[(y*w+x)*4+3]=0;
+    const nd=new ImageData(d,w,hh),c=makeCanvas(w,hh);c.getContext('2d').putImageData(nd,0,0);
+    draft.undo={orig:draft.orig,cut:draft.cut,data:draft.data,useCut:draft.useCut};
+    draft.orig={src:c.toDataURL('image/png'),w,h:hh};draft.data=nd;
+    draft.cut=draft.useCut?makeCut(nd,draft.tol):null;
+    if(!draft.cut)draft.useCut=false;
+    showDraftPhoto();
+  }catch(_){toast('That part could not be erased.');}
+}
+$('#undoErase').addEventListener('click',()=>{
+  if(!draft||!draft.undo)return;
+  Object.assign(draft,draft.undo);draft.undo=null;showDraftPhoto();
+});
+function normLink(v){
+  v=v.trim();if(!v)return '';
+  if(!/^https?:\/\//i.test(v))v='https://'+v;
+  try{const u=new URL(v);return /^https?:$/.test(u.protocol)&&u.hostname.includes('.')?u.href:'';}catch(_){return '';}
+}
+function savePieceForm(andPlace){
+  if(!draft.orig){toast('Add a photo of the piece first.');return;}
+  const rawLink=$('#pLink').value,link=normLink(rawLink);
+  if(rawLink.trim()&&!link){toast('That link does not look like a website address.');return;}
+  const old=draft.id?P(draft.id):null;
+  const p=old||{id:uid(),added:Date.now()};
+  let store=$('#pStore').value.trim();
+  if(!store&&link){const host=new URL(link).hostname.replace(/^www\./,'');store=host.charAt(0).toUpperCase()+host.slice(1);}
+  Object.assign(p,{name:$('#pName').value.trim()||'Untitled piece',type:$('#pType').value,store,link,
+    notes:$('#pNotes').value.trim(),w:readNum($('#pW')),d:readNum($('#pD')),h:readNum($('#pH')),orig:draft.orig,cut:draft.cut,useCut:!!(draft.useCut&&draft.cut),tol:draft.tol});
+  if(draft.newPhoto&&p.sample)delete p.sample;
+  if(draft.data)pix.set(p.id,draft.data);else if(draft.newPhoto)pix.delete(p.id);
+  lib.set(p.id,p);savePiece(p);
+  let ch=false;
+  for(const s of sets){const has=s.ids.includes(p.id),want=draft.sets.has(s.id);
+    if(want&&!has){s.ids.push(p.id);ch=true;}else if(!want&&has){s.ids=s.ids.filter(x=>x!==p.id);ch=true;}}
+  if(ch)saveSets();
+  draft=null;closeSheets();renderTray();render();
+  if(andPlace)placeNow(p);else{openSheet(libSheet);toast('Saved to your furniture.');}
+}
+$('#pieceForm').addEventListener('submit',e=>{e.preventDefault();savePieceForm(true);});
+$('#pSave').addEventListener('click',()=>savePieceForm(false));
+$('#pCancel').addEventListener('click',()=>{draft=null;openSheet(libSheet);});
+$('#pDelete').addEventListener('click',e=>confirmTap(e.currentTarget,()=>{
+  const id=draft.id;draft=null;
+  lib.delete(id);pix.delete(id);idbDel('p:'+id).catch(()=>{});
+  for(const rm of D.rooms)rm.items=rm.items.filter(i=>i.a!==id);
+  let ch=false;for(const s of sets){if(s.ids.includes(id)){s.ids=s.ids.filter(x=>x!==id);ch=true;}}
+  if(ch)saveSets();
+  selId=null;renderTray();render();save();openSheet(libSheet);
+}));
+
+/* ---------- Stores ---------- */
+const STORES=[['IKEA','https://www.ikea.com/ca/en/'],['Wayfair','https://www.wayfair.ca/'],['Structube','https://www.structube.com/'],
+              ['West Elm','https://www.westelm.ca/'],['Article','https://www.article.com/'],['CB2','https://www.cb2.ca/']];
+let myStores=[];
+function renderStores(){
+  const box=$('#stores');box.textContent='';
+  const link=(name,url)=>h('a',{class:'btn small',href:url,target:'_blank',rel:'noopener',text:name});
+  for(const [n,u] of STORES)box.append(link(n,u));
+  myStores.forEach((s,i)=>{
+    box.append(h('span',{class:'storechip'},link(s.name,s.url),
+      h('button',{type:'button',class:'btn small',text:'×','aria-label':'Remove '+s.name,onclick:()=>{myStores.splice(i,1);idbSet('stores',myStores).catch(()=>{});renderStores();}})));
+  });
+}
+function addStore(){
+  const inp=$('#storeUrl'),href=normLink(inp.value);if(!inp.value.trim())return;
+  if(!href){toast('That does not look like a website address.');return;}
+  const host=new URL(href).hostname.replace(/^www\./,'');
+  myStores.push({name:host.charAt(0).toUpperCase()+host.slice(1),url:href});
+  idbSet('stores',myStores).catch(()=>{});inp.value='';renderStores();
+}
+$('#storeAdd').addEventListener('click',addStore);
+$('#storeUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addStore();}});
+
+/* ---------- Menu: rooms and designs ---------- */
+function renderMenu(){
+  const rm=R();
+  $('#roomName').value=rm.name;$('#designInput').value=D.name;
+  $('#deleteRoom').hidden=D.rooms.length<2;
+  $('#resetRoom').disabled=!rm.items.length;
+  $('#sizeRoom').textContent=sized(rm)?'Change room size':'Set room size';
+  const box=$('#savedList');box.textContent='';
+  const list=index.some(x=>x.id===D.id)?index:[{id:D.id,name:D.name,updated:D.updated,rooms:D.rooms.length}].concat(index);
+  for(const d of list){
+    const cur=d.id===D.id;
+    const when=new Date(d.updated).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    const o=h('button',{type:'button',class:'btn open'+(cur?' on':''),onclick:()=>{if(!cur)openDesign(d.id);else closeSheets();}},
+      h('b',{text:cur?D.name:d.name}),h('span',{text:(cur?'Open now':when)+' · '+d.rooms+(d.rooms===1?' room':' rooms')}));
+    const x=h('button',{type:'button',class:'btn danger',text:'Delete'});
+    x.addEventListener('click',()=>confirmTap(x,()=>deleteDesign(d.id)));
+    box.append(h('div',{class:'saved'},o,x));
+  }
+}
+$('#roomName').addEventListener('input',e=>{R().name=e.target.value.trim()||'Room';renderTabs();save();});
+$('#designInput').addEventListener('input',e=>{D.name=e.target.value.trim()||'Untitled design';$('#designName').textContent=D.name;save();});
+for(const b of document.querySelectorAll('[data-unit]'))b.addEventListener('click',()=>setUnit(b.dataset.unit));
+$('#resetRoom').addEventListener('click',()=>{
+  const rm=R();if(!rm.items.length)return;
+  remember();rm.items=[];selId=null;closeSheets();renderTray();render();save();
+  toast('Room cleared. Undo brings it back.');
+});
+$('#deleteRoom').addEventListener('click',e=>confirmTap(e.currentTarget,()=>{
+  if(D.rooms.length<2)return;
+  const i=D.rooms.indexOf(R());D.rooms.splice(i,1);D.cur=D.rooms[Math.max(0,i-1)].id;
+  closeSheets();renderAll();save();
+}));
+$('#newDesign').addEventListener('click',async()=>{
+  await flush();D=sampleDesign('New design');clearHistory();closeSheets();renderAll();
+  toast('New design started. Add your room photo.');
+});
+function validDesign(d){
+  return d&&typeof d==='object'&&Array.isArray(d.rooms)&&d.rooms.length&&
+    d.rooms.every(r=>r&&r.room&&typeof r.room.src==='string'&&r.room.w>0&&r.room.h>0&&Array.isArray(r.items));
+}
+// Brings older designs (which carried their own furniture) into the shared library.
+function migrate(d){
+  if(d.assets&&typeof d.assets==='object'){
+    for(const k of Object.keys(d.assets)){
+      const a=d.assets[k];if(!a||!a.orig||a.sample||lib.has(k))continue;
+      const used=d.rooms.some(r=>r.items.some(i=>i.a===k&&i.cut));
+      const p={id:k,name:'Untitled piece',type:'Other',store:'',link:'',w:null,d:null,h:null,added:Date.now(),
+               orig:a.orig,cut:a.cut||null,useCut:!!(a.cut&&used),tol:a.tol||26};
+      lib.set(k,p);savePiece(p);
+    }
+    for(const r of d.rooms)for(const i of r.items){
+      const a=d.assets[i.a];
+      if(a&&i.cut&&a.cut&&a.orig)i.s=i.s*a.orig.w/a.cut.w;
+      delete i.cut;
+    }
+    delete d.assets;
+  }
+  for(const r of d.rooms){
+    r.id=r.id||uid();r.name=String(r.name||'Room');if(r.cal===undefined)r.cal=null;
+    r.items=r.items.filter(i=>i&&lib.has(i.a));
+  }
+  if(!d.rooms.some(r=>r.id===d.cur))d.cur=d.rooms[0].id;
+  return d;
+}
+async function openDesign(id){
+  await flush();
+  let d=null;try{d=await idbGet('d:'+id);}catch(_){}
+  if(!validDesign(d)){toast('That design could not be opened.');return;}
+  D=migrate(d);clearHistory();closeSheets();renderAll();idbSet('last',D.id).catch(()=>{});
+}
+async function deleteDesign(id){
+  clearTimeout(saveTimer);saveTimer=0;
+  index=index.filter(x=>x.id!==id);
+  try{await idbDel('d:'+id);await idbSet('index',index);}catch(_){}
+  if(id===D.id){
+    if(index.length){await openDesign(index[0].id);openSheet(menuSheet);return;}
+    D=sampleDesign();clearHistory();renderAll();
+  }
+  renderMenu();
+}
+async function openBackup(file){
+  try{
+    const o=JSON.parse(await file.text());
+    const d=o&&o.design?o.design:o;
+    if(!validDesign(d))throw new Error('shape');
+    if(o.pieces&&typeof o.pieces==='object'){
+      for(const k of Object.keys(o.pieces)){const p=o.pieces[k];if(p&&p.orig&&p.orig.src&&!lib.has(k)){p.id=k;lib.set(k,p);savePiece(p);}}
+    }
+    await flush();
+    migrate(d);d.id=uid();d.name=String(d.name||'Opened design');
+    D=d;clearHistory();closeSheets();renderAll();save();
+    toast('Backup opened.');
+  }catch(e){toast('That file is not a Room Designer backup.');}
+}
+
+/* ---------- Saving files ---------- */
+const hosted=!!(window.claude&&typeof window.claude.use==='function');
+const dlReady=hosted?window.claude.use('downloads').catch(()=>null):Promise.resolve(null);
+async function saveFile(name,blob,type,okMsg){
+  if(hosted){
+    const dl=await dlReady;
+    if(!dl){toast('Saving files is not available in this view.');return;}
+    try{await dl.save({filename:name,data:blob});toast(okMsg);}
+    catch(err){if(!err||err.code!=='declined')toast('The file could not be saved here.');}
+    return;
+  }
+  const file=new File([blob],name,{type});
+  if(type==='image/jpeg'&&navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file]});}catch(_){}
+    return;
+  }
+  const a=h('a',{href:URL.createObjectURL(blob),download:name});document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+}
+const slug=s=>s.replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-').toLowerCase();
+async function composite(){
+  const rm=R(),r=rm.room,k=Math.min(1,2200/Math.max(r.w,r.h)),c=makeCanvas(r.w*k,r.h*k),x=c.getContext('2d'),cw=c.width,ch=c.height;
+  x.drawImage(await imgOf(r),0,0,cw,ch);
+  for(const it of rm.items){
+    const p=P(it.a);if(!p)continue;
+    const v=pv(p),im=await imgOf(v),w=dispW(it)*cw,hh=w*v.h/v.w;
+    if(it.sh){
+      const ew=w*.92,eh=Math.max(w*.18,cw*.008);
+      x.save();x.translate(it.x*cw,it.y*ch+hh/2);x.scale(1,eh/ew);
+      const gr=x.createRadialGradient(0,0,0,0,0,ew/2);gr.addColorStop(0,'rgba(0,0,0,.6)');gr.addColorStop(.55,'rgba(0,0,0,.3)');gr.addColorStop(1,'rgba(0,0,0,0)');
+      x.fillStyle=gr;x.beginPath();x.arc(0,0,ew/2,0,Math.PI*2);x.fill();x.restore();
+    }
+    x.save();x.translate(it.x*cw,it.y*ch);x.rotate(it.r);if(it.f)x.scale(-1,1);
+    if(it.sh){x.shadowColor='rgba(0,0,0,.4)';x.shadowBlur=cw*.032;x.shadowOffsetY=cw*.012;}
+    x.drawImage(im,-w/2,-hh/2,w,hh);x.restore();
+  }
+  return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('blob')),'image/jpeg',.92));
+}
+$('#saveBtn').addEventListener('click',async e=>{
+  const btn=e.currentTarget;btn.disabled=true;
+  try{await saveFile((slug(D.name+' '+R().name)||'room-design')+'.jpg',await composite(),'image/jpeg','Picture saved.');}
+  catch(_){toast('The picture could not be created.');}
+  finally{btn.disabled=false;}
+});
+$('#backup').addEventListener('click',async e=>{
+  const btn=e.currentTarget;btn.disabled=true;
+  try{
+    const pieces={};
+    for(const rm of D.rooms)for(const it of rm.items){const p=P(it.a);if(p)pieces[p.id]=p;}
+    const blob=new Blob([JSON.stringify({v:2,design:D,pieces})],{type:'application/json'});
+    await saveFile((slug(D.name)||'design')+'-backup.json',blob,'application/json','Backup saved.');
+  }catch(_){toast('The backup could not be created.');}
+  finally{btn.disabled=false;}
+});
+
+/* ---------- Keyboard ---------- */
+document.addEventListener('keydown',e=>{
+  const open=SHEETS.some(s=>!s.hidden);
+  if(e.key==='Escape'){
+    if(!pieceSheet.hidden){draft=null;openSheet(libSheet);}
+    else if(open)closeSheets();else if(calMode)exitCal();else if(selId){selId=null;render();}
+    return;
+  }
+  const typing=/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)&&e.target.type!=='range';
+  if(typing||calMode||(open&&!(innerWidth>=900&&pieceSheet.hidden&&menuSheet.hidden)))return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return;}
+  const it=sel();if(!it||it.lk)return;
+  const items=R().items;
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();remember();items.splice(items.indexOf(it),1);selId=null;renderTray();render();save();return;}
+  const step=e.shiftKey?.02:.005,mv={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+  if(mv){e.preventDefault();remember();it.x=clamp(it.x+mv[0]*step,-.25,1.25);it.y=clamp(it.y+mv[1]*step,-.25,1.25);render();save();}
+});
+
+/* ---------- Start ---------- */
+async function boot(){
+  let d=null;
+  try{
+    index=(await idbGet('index'))||[];
+    myStores=(await idbGet('stores'))||[];
+    sets=(await idbGet('sets'))||[];
+    unit=(await idbGet('unit'))==='cm'?'cm':'in';
+    for(const p of await idbAll('p:'))if(p&&p.id&&p.orig)lib.set(p.id,p);
+    const last=await idbGet('last');
+    if(last)d=await idbGet('d:'+last);
+    if(!d&&index.length)d=await idbGet('d:'+index[0].id);
+  }catch(_){}
+  for(const [id,p] of [...lib])if(p.sample){lib.delete(id);idbDel('p:'+id).catch(()=>{});}
+  D=validDesign(d)?migrate(d):sampleDesign();
+  setUnit(unit);renderAll();
+  if('ResizeObserver' in window)new ResizeObserver(layout).observe(well);else window.addEventListener('resize',layout);
+}
+boot();
+})();
+</script>
+</body>
+</html>
