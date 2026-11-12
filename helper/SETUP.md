@@ -1,0 +1,11 @@
+# Link helper setup (about 10 minutes, free)
+
+1. Sign in at dash.cloudflare.com (free account).
+2. Workers & Pages, then Create, then Create Worker. Name it `roomdesign-helper`, tap Deploy.
+3. Tap Edit code. Delete the sample code, paste in everything from `helper/worker.js`, tap Deploy.
+4. Copy the worker's address, like `https://roomdesign-helper.yourname.workers.dev`.
+5. In Room Designer: Menu, Link helper, paste the address.
+
+Then in Add a piece, paste a product link and tap Fetch details. Check the numbers against the store page.
+
+By default only https://jpathfit-ui.github.io can use the helper. To allow another address, add a Worker variable `ALLOW_ORIGIN` in Settings.

@@ -167,6 +167,8 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .card .btn{min-height:38px;padding:0 10px;font-size:14px;flex:1}
 .tag{display:inline-block;padding:1px 7px;border-radius:99px;border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--muted)}
 .tag.warn{border-color:var(--brass);color:var(--ink)}
+/* measurement fields change with the furniture type */
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #photoBox{position:relative;height:230px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:14px;touch-action:none;
   background:
     linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 0 0/14px 14px,
@@ -292,14 +294,13 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
       <label class="lbl">Type<select class="field" id="pType"></select></label>
       <label class="lbl">Where you found it<input class="field" id="pStore" type="text" maxlength="40" autocomplete="off" placeholder="Store or place"></label>
     </div>
-    <label class="lbl">Link<input class="field" id="pLink" type="url" inputmode="url" autocomplete="off" placeholder="Paste the product page link"></label>
-    <div class="pair">
-      <label class="lbl">Width<input class="field" id="pW" type="text" inputmode="decimal" autocomplete="off"></label>
-      <label class="lbl">Depth<input class="field" id="pD" type="text" inputmode="decimal" autocomplete="off"></label>
-      <label class="lbl">Height<input class="field" id="pH" type="text" inputmode="decimal" autocomplete="off"></label>
-      <span class="unit" style="align-self:flex-end;padding-bottom:13px"></span>
+    <div class="pair" style="align-items:flex-end">
+      <label class="lbl">Link<input class="field" id="pLink" type="url" inputmode="url" autocomplete="off" placeholder="Paste the product page link"></label>
+      <button class="btn" type="button" id="pFetch">Fetch details</button>
     </div>
-    <p>One number is enough. Tall pieces like lamps and shelves are sized by height, wide pieces like sofas by width. For round pieces, use the widest diameter as the width.</p>
+    <p id="fetchNote" hidden>To fill in details from a link, add the link helper address in Menu.</p>
+    <div class="fields" id="pFields"></div>
+    <p>One size is enough: tall pieces are sized by height, wide pieces by width. The fields change with the type.</p>
     <label class="lbl">Other measurements or notes<input class="field" id="pNotes" type="text" maxlength="200" autocomplete="off" placeholder="Like Base 11 in, shade 6 in"></label>
     <div id="pSetsRow" hidden>
       <h3 style="margin:0 0 6px">Sets</h3>
@@ -336,6 +337,11 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
     <div class="wrap">
       <button class="btn" type="button" data-unit="in">Inches</button>
       <button class="btn" type="button" data-unit="cm">Centimetres</button>
+    </div>
+    <div id="helperBox">
+      <h3>Link helper</h3>
+      <input class="field" id="helperUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://roomdesign-helper.yourname.workers.dev" aria-label="Link helper address">
+      <p>Paste your helper's address to fill in a piece from a product link.</p>
     </div>
     <h3>Saved designs</h3>
     <div id="savedList" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -461,8 +467,55 @@ const toUnit=v=>unit==='cm'?v*2.54:v;
 const fromUnit=v=>unit==='cm'?v/2.54:v;
 const fmt=v=>String(Math.round(toUnit(v)*10)/10);
 function readNum(inp){const v=parseFloat(String(inp.value).replace(',','.'));return v>0?fromUnit(v):null;}
+const FIELDS={
+  'Sofa':[['w','Width','len'],['d','Depth','len'],['h','Height','len'],['seat','Seat height','len'],['arm','Arm height','len']],
+  'Chair':[['w','Width','len'],['d','Depth','len'],['h','Height','len'],['seat','Seat height','len']],
+  'Coffee table':[['w','Length or diameter','len'],['d','Width','len'],['h','Height','len']],
+  'Side table':[['w','Width or diameter','len'],['d','Depth','len'],['h','Height','len']],
+  'TV stand':[['w','Width','len'],['d','Depth','len'],['h','Height','len'],['tv','Fits TVs up to, inches','num']],
+  'Storage':[['w','Width','len'],['d','Depth','len'],['h','Height','len'],['shelves','Shelves','num'],['opening','Shelf height','len']],
+  'Dining':[['w','Length or diameter','len'],['d','Width','len'],['h','Height','len'],['seats','Seats','num']],
+  'Bed':[['w','Width','len'],['d','Length','len'],['h','Height','len'],['head','Headboard height','len'],['mattress','Mattress size','txt']],
+  'Rug':[['w','Width','len'],['d','Length','len'],['pile','Pile height','len']],
+  'Lighting':[['h','Height','len'],['w','Widest point','len'],['base','Base diameter','len'],['shade','Shade diameter','len'],['cord','Cord length','len'],['bulb','Bulb watts','num']],
+  'Pillows and throws':[['w','Width','len'],['h','Length','len'],['thick','Thickness','len']],
+  'Decor':[['w','Width','len'],['d','Depth','len'],['h','Height','len']],
+  'Plant':[['h','Height','len'],['w','Spread','len'],['pot','Pot diameter','len']],
+  'Other':[['w','Width','len'],['d','Depth','len'],['h','Height','len']]
+};
+const SYN_DEF={w:['width','length','diameter'],d:['depth','length','width'],h:['height','length']};
+const SYN_TYPE={
+  'Bed':{w:['width'],d:['length','depth']},
+  'Rug':{w:['width'],d:['length','depth']},
+  'Coffee table':{w:['length','diameter','width'],d:['width','depth']},
+  'Dining':{w:['length','diameter','width'],d:['width','depth']},
+  'Side table':{w:['width','diameter','length'],d:['depth','width']},
+  'Lighting':{w:['width','diameter'],h:['height']},
+  'Plant':{w:['width','spread','diameter'],h:['height']},
+  'Pillows and throws':{w:['width'],h:['length','height']}
+};
+const SYN_EXTRA={seat:['seat height'],arm:['arm height'],base:['base diameter'],shade:['shade diameter'],cord:['cord length'],
+  pile:['pile height'],head:['headboard height'],opening:['shelf height'],thick:['thickness'],pot:['pot diameter']};
+const synFor=(type,k)=>(SYN_TYPE[type]&&SYN_TYPE[type][k])||SYN_DEF[k]||SYN_EXTRA[k]||[];
+const fieldList=type=>FIELDS[type]||FIELDS.Other;
+const GUESS=[[/coffee table|cocktail table/i,'Coffee table'],[/side table|end table|night ?stand|bedside/i,'Side table'],
+  [/\b(tv|media) (stand|unit|console|bench)|tv cabinet/i,'TV stand'],[/sofa|couch|loveseat|sectional/i,'Sofa'],
+  [/arm ?chair|chair|stool|bench|ottoman/i,'Chair'],[/dining|table/i,'Dining'],[/\bbed\b|headboard|mattress/i,'Bed'],
+  [/rug|carpet|runner/i,'Rug'],[/lamp|light|pendant|sconce|chandelier/i,'Lighting'],[/pillow|cushion|throw|blanket/i,'Pillows and throws'],
+  [/plant|planter/i,'Plant'],[/cabinet|bookcase|bookshelf|shelf|shelving|dresser|sideboard|wardrobe|storage|drawers?/i,'Storage'],
+  [/vase|mirror|frame|candle|\bart\b/i,'Decor']];
+function mapMeasures(type,ms){
+  const used=new Set(),out={};
+  for(const [k] of fieldList(type)){
+    for(const syn of synFor(type,k)){
+      const i=ms.findIndex((m,ix)=>!used.has(ix)&&m.label===syn);
+      if(i>=0){used.add(i);out[k]=ms[i].inches;break;}
+    }
+  }
+  return {out,rest:ms.filter((m,ix)=>!used.has(ix))};
+}
 function dimText(p){
-  const parts=[p.w,p.d,p.h].filter(v=>v>0).map(fmt);
+  const parts=[[p.w,'W'],[p.d,'D'],[p.h,'H']].filter(([v])=>v>0).map(([v,l])=>fmt(v)+' '+l);
   return parts.length?parts.join(' × ')+' '+unit:'';
 }
 function setUnit(u){
@@ -971,14 +1024,15 @@ function showDraftPhoto(){
 function openPiece(id){
   const p=id?P(id):null;
   if(calMode)exitCal();
-  draft=p?{id:p.id,orig:p.orig,cut:p.cut,useCut:p.useCut,tol:p.tol,data:pix.get(p.id)||null,sets:new Set(sets.filter(s=>s.ids.includes(p.id)).map(s=>s.id))}
-         :{id:null,orig:null,cut:null,useCut:false,tol:26,data:null,sets:new Set(fSet?[fSet]:[])};
+  draft=p?{id:p.id,orig:p.orig,cut:p.cut,useCut:p.useCut,tol:p.tol,data:pix.get(p.id)||null,vals:valInit(p),sets:new Set(sets.filter(s=>s.ids.includes(p.id)).map(s=>s.id))}
+         :{id:null,orig:null,cut:null,useCut:false,tol:26,data:null,vals:{},sets:new Set(fSet?[fSet]:[])};
   closeSheets();pieceSheet.hidden=false;
   $('#pieceTitle').textContent=p?'Edit piece':'Add a piece';
   const ts=$('#pType');ts.textContent='';for(const t of TYPES)ts.append(h('option',{value:t,text:t}));
   $('#pName').value=p?p.name:'';ts.value=p?p.type:(fType!=='All'?fType:'Other');
   $('#pNotes').value=p&&p.notes?p.notes:'';$('#pStore').value=p?p.store:'';$('#pLink').value=p?p.link:'';
-  $('#pW').value=p&&p.w?fmt(p.w):'';$('#pD').value=p&&p.d?fmt(p.d):'';$('#pH').value=p&&p.h?fmt(p.h):'';
+  renderFields();
+  $('#pFetch').hidden=hosted;$('#fetchNote').hidden=hosted||!!helperUrl;
   $('#pDelete').hidden=!p;$('#pasteBox').value='';
   const row=$('#pSetsRow'),box=$('#pSets');row.hidden=!sets.length;box.textContent='';
   for(const s of sets){
@@ -988,6 +1042,28 @@ function openPiece(id){
   }
   showDraftPhoto();
 }
+function valInit(p){
+  const v={};
+  if(p){for(const k of ['w','d','h'])if(p[k]>0)v[k]=p[k];Object.assign(v,p.x||{});}
+  return v;
+}
+function renderFields(){
+  const box=$('#pFields');box.textContent='';
+  for(const [k,label,kind] of fieldList($('#pType').value)){
+    const inp=h('input',{class:'field',id:'pf_'+k,type:'text',autocomplete:'off',inputmode:kind==='txt'?'text':'decimal'});
+    const cur=draft.vals[k];
+    inp.value=cur==null?'':(kind==='len'?fmt(cur):String(cur));
+    inp.addEventListener('input',()=>{
+      const t=inp.value.trim();
+      if(!t){delete draft.vals[k];return;}
+      if(kind==='txt'){draft.vals[k]=t;return;}
+      const n=parseFloat(t.replace(',','.'));
+      if(n>0)draft.vals[k]=kind==='len'?fromUnit(n):n;else delete draft.vals[k];
+    });
+    box.append(h('label',{class:'lbl'},label+(kind==='len'?' ('+unit+')':''),inp));
+  }
+}
+$('#pType').addEventListener('change',renderFields);
 async function setDraftPhoto(file){
   if(!draft)return;
   try{
@@ -1055,6 +1131,45 @@ $('#undoErase').addEventListener('click',()=>{
   if(!draft||!draft.undo)return;
   Object.assign(draft,draft.undo);draft.undo=null;showDraftPhoto();
 });
+/* Fill the form from a product link, through the link helper */
+let helperUrl='';
+$('#pFetch').addEventListener('click',async()=>{
+  if(!draft)return;
+  const link=normLink($('#pLink').value);
+  if(!link){toast('Paste a product link first.');return;}
+  if(!helperUrl){toast('Add the link helper address in Menu first.');return;}
+  const btn=$('#pFetch'),ac=new AbortController(),timer=setTimeout(()=>ac.abort(),20000);
+  btn.disabled=true;btn.textContent='Fetching…';
+  try{
+    const r=await fetch(helperUrl+(helperUrl.includes('?')?'&':'?')+'url='+encodeURIComponent(link),{signal:ac.signal});
+    const j=await r.json();
+    if(!j.ok){
+      toast(j.reason==='blocked'?'That store blocked the helper. Type the details in.':j.reason==='notfound'?'That page was not found. Check the link.':
+        j.reason==='unreachable'?'The helper could not open that page.':'The helper found nothing on that page. Type the details in.');
+      return;
+    }
+    const got=[];
+    if(j.name&&!$('#pName').value.trim()){$('#pName').value=j.name.slice(0,60);got.push('name');}
+    if($('#pType').value==='Other'){const g=GUESS.find(([re])=>re.test(j.name||''));if(g){$('#pType').value=g[1];got.push('type');}}
+    const {out,rest}=mapMeasures($('#pType').value,j.measures||[]);
+    let n=0;for(const k in out)if(draft.vals[k]==null){draft.vals[k]=out[k];n++;}
+    if(rest.length&&!$('#pNotes').value.trim())$('#pNotes').value=rest.map(m=>m.label+' '+fmt(m.inches)+' '+unit).join(', ').slice(0,200);
+    if(n)got.push(n+(n===1?' measurement':' measurements'));
+    renderFields();
+    if(j.image&&!draft.orig){
+      try{const blob=await (await fetch(j.image)).blob();await setDraftPhoto(new File([blob],'product.jpg',{type:blob.type||'image/jpeg'}));got.push('photo');}catch(_){}
+    }
+    toast(got.length?'Filled in '+got.join(', ')+'. Check the numbers against the store page.':'Nothing new to fill in.');
+  }catch(e){toast('The helper could not be reached. Check its address in Menu.');}
+  finally{clearTimeout(timer);btn.disabled=false;btn.textContent='Fetch details';}
+});
+$('#helperUrl').addEventListener('change',e=>{
+  let v=e.target.value.trim();
+  if(v&&!/^https:\/\//i.test(v))v='https://'+v;
+  try{if(v)new URL(v);}catch(_){toast('That does not look like a web address.');return;}
+  v=v.replace(/\/+$/,'');helperUrl=v;e.target.value=v;
+  idbSet('helper',v).catch(()=>{});toast(v?'Helper address saved.':'Helper removed.');
+});
 function normLink(v){
   v=v.trim();if(!v)return '';
   if(!/^https?:\/\//i.test(v))v='https://'+v;
@@ -1064,12 +1179,14 @@ function savePieceForm(andPlace){
   if(!draft.orig){toast('Add a photo of the piece first.');return;}
   const rawLink=$('#pLink').value,link=normLink(rawLink);
   if(rawLink.trim()&&!link){toast('That link does not look like a website address.');return;}
+  const vals=draft.vals||{},extra={};
+  for(const k in vals)if(!['w','d','h'].includes(k))extra[k]=vals[k];
   const old=draft.id?P(draft.id):null;
   const p=old||{id:uid(),added:Date.now()};
   let store=$('#pStore').value.trim();
   if(!store&&link){const host=new URL(link).hostname.replace(/^www\./,'');store=host.charAt(0).toUpperCase()+host.slice(1);}
   Object.assign(p,{name:$('#pName').value.trim()||'Untitled piece',type:$('#pType').value,store,link,
-    notes:$('#pNotes').value.trim(),w:readNum($('#pW')),d:readNum($('#pD')),h:readNum($('#pH')),orig:draft.orig,cut:draft.cut,useCut:!!(draft.useCut&&draft.cut),tol:draft.tol});
+    notes:$('#pNotes').value.trim(),w:vals.w||null,d:vals.d||null,h:vals.h||null,x:extra,orig:draft.orig,cut:draft.cut,useCut:!!(draft.useCut&&draft.cut),tol:draft.tol});
   if(draft.newPhoto&&p.sample)delete p.sample;
   if(draft.data)pix.set(p.id,draft.data);else if(draft.newPhoto)pix.delete(p.id);
   lib.set(p.id,p);savePiece(p);
@@ -1122,6 +1239,7 @@ function renderMenu(){
   $('#deleteRoom').hidden=D.rooms.length<2;
   $('#resetRoom').disabled=!rm.items.length;
   $('#sizeRoom').textContent=sized(rm)?'Change room size':'Set room size';
+  $('#helperBox').hidden=hosted;$('#helperUrl').value=helperUrl;
   const box=$('#savedList');box.textContent='';
   const list=index.some(x=>x.id===D.id)?index:[{id:D.id,name:D.name,updated:D.updated,rooms:D.rooms.length}].concat(index);
   for(const d of list){
@@ -1291,6 +1409,7 @@ async function boot(){
     myStores=(await idbGet('stores'))||[];
     sets=(await idbGet('sets'))||[];
     unit=(await idbGet('unit'))==='cm'?'cm':'in';
+    helperUrl=(await idbGet('helper'))||'';
     for(const p of await idbAll('p:'))if(p&&p.id&&p.orig)lib.set(p.id,p);
     const last=await idbGet('last');
     if(last)d=await idbGet('d:'+last);
