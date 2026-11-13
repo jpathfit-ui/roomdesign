@@ -1616,7 +1616,7 @@ $('#pFetch').addEventListener('click',async()=>{
     try{j=await r.json();}
     catch(e){toast('That address is not running the helper script. Paste worker.js into the worker and deploy it.');return;}
     if(!j.ok){
-      toast(j.reason==='blocked'?'That store blocked the helper. Type the details in.':j.reason==='notfound'?'That page was not found. Check the link.':
+      toast(j.search==='noquery'?'That link is a store home page, not a product. Open the product itself and copy its link.':j.search==='nosnippets'||j.search==='searcherror'?'That store blocked the helper and the web search was turned away. Type the details in.':j.search==='nosizes'?'That store blocked the helper and the search found no sizes. Type the details in.':j.reason==='blocked'?'That store blocked the helper. Type the details in.':j.reason==='notfound'?'That page was not found. Check the link.':
         j.reason==='unreachable'?'The helper could not open that page.':'The helper found nothing on that page. Type the details in.');
       return;
     }

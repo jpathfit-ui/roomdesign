@@ -32,6 +32,7 @@ export default {
 
     const viaSearch = async (reason) => {
       const r = await searchFallback(target, env);
+      if (r && r.fail) return json({ ok: false, reason, search: r.fail });
       if (r) return json({ ok: true, viaSearch: true, name: r.name, images: [], store: target.hostname.replace(/^www\./, ''), image: null, measures: r.measures });
       return json({ ok: false, reason });
     };
@@ -61,7 +62,7 @@ export default {
     if (!measures.length) {
       // The page loaded but has no sizes in it. Ask a search engine, which has usually read the spec table.
       const r = await searchFallback(target, env, info.name);
-      if (r && r.measures.length) { measures = r.measures; viaSrch = true; }
+      if (r && r.measures && r.measures.length) { measures = r.measures; viaSrch = true; }
     }
 
     let image = null;
@@ -303,7 +304,7 @@ function queryFromUrl(u, name) {
 
 async function searchFallback(u, env, name) {
   const q = queryFromUrl(u, name);
-  if (!q) return null;
+  if (!q) return { fail: 'noquery' };
   let snippets = [], title = '';
   try {
     if (env.BRAVE_KEY) {
@@ -329,8 +330,8 @@ async function searchFallback(u, env, name) {
         }
       }
     }
-  } catch (e) { return null; }
-  if (!snippets.length) return null;
+  } catch (e) { return { fail: 'searcherror' }; }
+  if (!snippets.length) return { fail: 'nosnippets' };
 
   // Prefer results from the same store or its maker, then anything else.
   const own = u.hostname.replace(/^www\./, '');
@@ -341,7 +342,7 @@ async function searchFallback(u, env, name) {
     const ms = sizesFromText(sn.text);
     if (ms.length >= 2) return { name: title && !/^\W*$/.test(title) ? title : '', measures: ms };
   }
-  return null;
+  return { fail: 'nosizes' };
 }
 
 function hostOf(x) { try { return new URL(x).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
