@@ -1337,6 +1337,8 @@ $('#pFetch').addEventListener('click',async()=>{
       try{const blob=await (await fetch(j.image)).blob();await setDraftPhoto(new File([blob],'product.jpg',{type:blob.type||'image/jpeg'}));got.push('photo');}catch(_){}
     }
     if(got.includes('photo')){try{$('#pieceForm').scrollTo({top:0,behavior:'smooth'});}catch(_){$('#pieceForm').scrollTop=0;}}
+    if(!Array.isArray(j.images)){toast('Your helper is the OLD version, so it can only fetch the main photo. Update it in Cloudflare to get all the photos to choose from.');return;}
+    if(!draft.cands||!draft.cands.length)got.push('no usable extra photos');
     toast(got.length?'Filled in '+got.join(', ')+'. Check the numbers against the store page.':'Nothing new to fill in.');
   }catch(e){toast('Something went wrong reading the helper reply.');}
   finally{clearTimeout(timer);btn.disabled=false;btn.textContent='Fetch details';}
