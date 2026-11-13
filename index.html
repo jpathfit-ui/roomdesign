@@ -77,14 +77,15 @@ h1 small{display:block;font-family:var(--body);font-weight:400;font-size:13px;le
 #selbox{position:absolute;display:none;border:2px dashed var(--brass);border-radius:4px;pointer-events:none;z-index:9999;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 #selbox.locked{border-style:solid;border-color:#fff}
 #selbox.locked #handle,#selbox.locked #rot{display:none}
-#rot{left:-17px;cursor:grab}
-#handle{right:-17px;cursor:nwse-resize}
+#rot{left:50%;margin-left:-19px;top:-58px;bottom:auto;cursor:grab;background:#fff;border-color:var(--spruce)}
+#rot::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:22px;margin-left:-1px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+#handle{right:-30px;bottom:-30px;cursor:nwse-resize}
 #handle,#rot{
-  position:absolute;bottom:-17px;width:34px;height:34px;border-radius:50%;padding:0;
+  position:absolute;bottom:-17px;width:38px;height:38px;border-radius:50%;padding:0;
   background:var(--brass);border:2px solid #fff;color:#1c1c1c;pointer-events:auto;
   display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.4);touch-action:none;
 }
-#handle::before,#rot::before{content:"";position:absolute;inset:-9px}
+#handle::before,#rot::before{content:"";position:absolute;inset:-4px}
 #handle svg,#rot svg{width:16px;height:16px;pointer-events:none}
 .chip{
   position:absolute;top:10px;z-index:10000;padding:5px 10px;border-radius:99px;border:0;
@@ -115,6 +116,8 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
     var(--card);
 }
 .thumb img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+.item.multi{outline:3px dashed var(--brass);outline-offset:3px}
+#multiBar .count{flex:none;font-weight:600;font-size:13px;color:var(--muted);padding:0 6px}
 .thumb.on{outline:3px solid var(--brass);outline-offset:1px}
 #candBox p{margin:8px 0 0;font-size:13px;color:var(--muted)}
 #candRow{padding:8px 0 0}
@@ -229,11 +232,24 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
     <input type="range" id="tol" min="6" max="90" step="2" value="26">
   </div>
   <div class="row" id="tray"></div>
+  <div class="row" id="multiBar" hidden>
+    <span class="count" id="multiCount">Tap pieces</span>
+    <button class="btn" type="button" data-al="left">Left</button>
+    <button class="btn" type="button" data-al="cx">Centre</button>
+    <button class="btn" type="button" data-al="right">Right</button>
+    <button class="btn" type="button" data-al="top">Top</button>
+    <button class="btn" type="button" data-al="cy">Middle</button>
+    <button class="btn" type="button" data-al="bottom">Bottom</button>
+    <button class="btn" type="button" data-al="spread">Space evenly</button>
+    <button class="btn" type="button" data-al="stack">Stack</button>
+    <button class="btn primary" type="button" data-al="done">Done</button>
+  </div>
   <div class="row" id="actions" hidden>
     <button class="btn" type="button" data-act="flip">Flip</button>
     <button class="btn" type="button" data-act="fwd">To front</button>
     <button class="btn" type="button" data-act="back">To back</button>
-    <button class="btn" type="button" data-act="copy">Copy</button>
+    <button class="btn" type="button" data-act="copy">Duplicate</button>
+    <button class="btn" type="button" data-act="slide" aria-pressed="false">Slide ↔</button>
     <button class="btn" type="button" data-act="auto" aria-pressed="false">True size</button>
     <button class="btn" type="button" data-act="cut" aria-pressed="false">Cut out</button>
     <button class="btn" type="button" data-act="shadow" aria-pressed="false">Shadow</button>
@@ -384,7 +400,7 @@ let index=[];             // saved designs: [{id,name,updated,rooms}]
 const lib=new Map();      // furniture library: id -> piece
 let sets=[];              // [{id,name,ids:[]}]
 let unit='in';
-let selId=null,history=[],W=0,H=0;
+let selId=null,history=[],W=0,H=0,multi=null,axisX=false;
 let calMode=false,calDraft=null;
 const els=new Map();      // item id -> element
 const pix=new Map();      // piece id -> ImageData of the original picture
@@ -647,10 +663,20 @@ function renderTabs(){
   tabs.append(h('label',{class:'btn small'+(sample?' primary':''),for:'roomFile','data-mode':'new',tabindex:'0',text:sample?'Add your photo':'Add room'}));
   $('#designName').textContent=D.name;
 }
+function goRoom(id){
+  if(id===D.cur||calMode)return;
+  D.cur=id;selId=null;multi=null;axisX=false;renderTabs();layout();save();
+  const c=tabs.querySelector('[aria-current="true"]');if(c&&c.scrollIntoView)c.scrollIntoView({inline:'nearest',block:'nearest'});
+}
 tabs.addEventListener('click',e=>{
-  const b=e.target.closest('[data-room]');if(!b||b.dataset.room===D.cur||calMode)return;
-  D.cur=b.dataset.room;selId=null;renderTabs();layout();save();
+  const b=e.target.closest('[data-room]');if(!b)return;goRoom(b.dataset.room);
 });
+function swipeRoom(dir){
+  const i=D.rooms.findIndex(r=>r.id===D.cur),n=i+dir;
+  if(D.rooms.length<2){toast('Add a neighbouring room to swipe between rooms.');return;}
+  if(n<0||n>=D.rooms.length){toast(dir>0?'That is the last room.':'That is the first room.');return;}
+  goRoom(D.rooms[n].id);toast(D.rooms[n].name||'Room');
+}
 
 /* ---------- Placing furniture ---------- */
 function place(p){
@@ -702,6 +728,7 @@ function render(){
     if(im._v!==v){im.src=v.src;im._v=v;}
     const w=dispW(it)*W,hh=w*v.h/v.w;
     el.style.left=it.x*W+'px';el.style.top=it.y*H+'px';el.style.width=w+'px';el.style.height=hh+'px';el.style.zIndex=idx+1;
+    el.classList.toggle('multi',!!(multi&&multi.has(it.id)));
     el.style.filter=it.sh?`drop-shadow(0 ${(W*.012).toFixed(1)}px ${(W*.016).toFixed(1)}px rgba(0,0,0,.4))`:'';
     im.style.transform=`rotate(${it.r}rad) scaleX(${it.f?-1:1})`;
     const eh=Math.max(w*.18,W*.008);el._sh.style.display=it.sh?'':'none';el._sh.style.height=eh+'px';el._sh.style.bottom=(-eh/2)+'px';
@@ -715,13 +742,14 @@ function render(){
     selbox.style.transform=`translate(-50%,-50%) rotate(${s.r}rad)`;
     selbox.classList.toggle('locked',!!s.lk);$('#handle').hidden=effAuto(s,rm);
   }else selbox.style.display='none';
-  calBar.hidden=!calMode;actions.hidden=!s;tray.hidden=!!s||calMode;
+  calBar.hidden=!calMode;actions.hidden=!s;tray.hidden=!!s||calMode||!!multi;
+  $('#multiBar').hidden=!multi||calMode;if(multi)$('#multiCount').textContent=multi.size?multi.size+' picked':'Tap pieces';
   cutRow.hidden=!(s&&!s.lk&&P(s.a).useCut&&P(s.a).cut);
   if(s){
     const p=P(s.a),B=a=>actions.querySelector(`[data-act="${a}"]`);
     const tog=(a,on)=>{const b=B(a);b.classList.toggle('on',!!on);b.setAttribute('aria-pressed',String(!!on));};
     for(const b of actions.querySelectorAll('[data-act]'))b.disabled=!!s.lk&&!['lock','done','details'].includes(b.dataset.act);
-    tog('cut',p.useCut&&p.cut);tog('shadow',s.sh);tog('lock',s.lk);tog('auto',effAuto(s,rm));
+    tog('cut',p.useCut&&p.cut);tog('slide',axisX);tog('shadow',s.sh);tog('lock',s.lk);tog('auto',effAuto(s,rm));
     B('lock').textContent=s.lk?'Unlock':'Lock';
     B('auto').hidden=!(sized(rm)&&hasSize(p));
     if(!cutRow.hidden&&document.activeElement!==tolInput)tolInput.value=p.tol;
@@ -731,6 +759,7 @@ function render(){
 function renderTray(){
   tray.textContent='';
   tray.append(h('button',{type:'button',class:'btn primary addbtn',onclick:()=>openSheet(libSheet)},h('b',{text:'+'}),h('span',{text:'Furniture'})));
+  tray.append(h('button',{type:'button',class:'btn addbtn',onclick:()=>startMulti()},h('b',{text:'☑'}),h('span',{text:'Select'})));
   const used=[];
   for(const rm of D.rooms)for(const it of rm.items){const p=P(it.a);if(p&&!used.includes(p))used.push(p);}
   for(const p of used){
@@ -816,11 +845,15 @@ well.addEventListener('pointerdown',e=>{
     if(onHandle&&sel()&&!sel().lk){
       const it=sel(),c=centerOf(it);
       g={mode:turn?'turn':'size',d0:Math.hypot(e.clientX-c.x,e.clientY-c.y)||1,a0:Math.atan2(e.clientY-c.y,e.clientX-c.x),s0:it.s,r0:it.r,dirty:false};
+    }else if(itemEl&&multi){
+      const id=itemEl.dataset.id;if(multi.has(id))multi.delete(id);else multi.add(id);
+      g={mode:'hold'};render();
     }else if(itemEl){
+      if(selId!==itemEl.dataset.id)axisX=false;
       selId=itemEl.dataset.id;
       if(sel().lk)g={mode:'hold'};else startDrag(e.clientX,e.clientY,false);
       render();
-    }else g={mode:'tap',x:e.clientX,y:e.clientY,moved:false};
+    }else g={mode:'tap',x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,moved:false};
   }else if(ptrs.size===2&&sel()&&!sel().lk){
     startPinch(g&&g.dirty);
   }
@@ -833,13 +866,13 @@ well.addEventListener('pointermove',e=>{
     const r=stage.getBoundingClientRect(),l=calDraft&&calDraft[g.k];if(!l)return;
     l['x'+g.e]=clamp((e.clientX-r.left)/W,0,1);l['y'+g.e]=clamp((e.clientY-r.top)/H,0,1);renderCal();return;
   }
-  if(g.mode==='tap'){if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>8)g.moved=true;return;}
+  if(g.mode==='tap'){g.lx=e.clientX;g.ly=e.clientY;if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>8)g.moved=true;return;}
   const it=sel();if(!it)return;
   const fixed=effAuto(it,R());
   if(g.mode==='drag'){
     const dx=e.clientX-g.px,dy=e.clientY-g.py;
     if(!g.dirty&&Math.hypot(dx,dy)<3)return;
-    touch();it.x=clamp(g.x0+dx/W,-.25,1.25);it.y=clamp(g.y0+dy/H,-.25,1.25);
+    touch();it.x=clamp(g.x0+dx/W,-.25,1.25);it.y=axisX?g.y0:clamp(g.y0+dy/H,-.25,1.25);
   }else if(g.mode==='size'||g.mode==='turn'){
     const c=centerOf(it),d=Math.hypot(e.clientX-c.x,e.clientY-c.y),a=Math.atan2(e.clientY-c.y,e.clientX-c.x);
     if(g.mode==='size'){if(fixed)return;touch();it.s=clamp(g.s0*d/g.d0,.01,6);}
@@ -860,7 +893,13 @@ function endPtr(e){
   ptrs.delete(e.pointerId);
   if(!g)return;
   if(g.mode==='tap'){
-    if(ptrs.size===0){if(!g.moved&&selId){selId=null;render();}g=null;}
+    if(ptrs.size===0){
+      const dx=g.lx-g.x,dy=g.ly-g.y,ax=Math.abs(dx),ay=Math.abs(dy);
+      if(g.moved&&ax>60&&ax>ay*1.5){g=null;swipeRoom(dx<0?1:-1);return;}
+      if(g.moved&&dy>80&&dy>ax*1.5){g=null;if(multi){multi=null;render();}else if(selId){selId=null;axisX=false;render();}else toast('Swipe left or right to change room.');return;}
+      if(!g.moved&&selId){selId=null;axisX=false;render();}
+      g=null;
+    }
     return;
   }
   if(g.mode==='cal'||g.mode==='hold'){if(ptrs.size===0)g=null;return;}
@@ -880,7 +919,8 @@ actions.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   const it=sel();if(!it)return;
   const rm=R(),items=rm.items,act=b.dataset.act,i=items.indexOf(it),p=P(it.a);
-  if(act==='done'){selId=null;render();return;}
+  if(act==='done'){selId=null;axisX=false;render();return;}
+  if(act==='slide'){axisX=!axisX;render();toast(axisX?'Dragging now only slides sideways, so pieces stay lined up.':'Free dragging again.');return;}
   if(act==='details'){openPiece(p.id);return;}
   if(act==='cut'){
     if(p.useCut&&p.cut)p.useCut=false;
@@ -905,7 +945,11 @@ actions.addEventListener('click',async e=>{
   else if(act==='shadow')it.sh=!it.sh;
   else if(act==='lock')it.lk=!it.lk;
   else if(act==='auto'){it.auto=!effAuto(it,rm);if(!it.auto)toast('Now sized by hand. Tap True size to snap back.');}
-  else if(act==='copy'){const c=Object.assign({},it,{id:uid(),lk:false,x:clamp(it.x+.05,0,1),y:clamp(it.y+.04,0,1)});items.push(c);selId=c.id;}
+  else if(act==='copy'){
+    const w=dispW(it),gap=w*1.04,nx=it.x+gap<=1.05?it.x+gap:it.x-gap;
+    const c=Object.assign({},it,{id:uid(),lk:false,x:clamp(nx,-.2,1.2)});items.push(c);selId=c.id;axisX=true;
+    toast('Duplicated beside the original. Drag it sideways to place it.');
+  }
   else if(act==='remove'){items.splice(i,1);selId=null;renderTray();}
   render();save();
 });
@@ -921,6 +965,76 @@ tolInput.addEventListener('input',()=>{
   },140);
 });
 undoBtn.addEventListener('click',undo);
+
+/* ---------- Multi-select: line up, space out, stack ---------- */
+function startMulti(){
+  if(calMode)exitCal();
+  if(R().items.length<2){toast('Place at least two pieces to line them up.');return;}
+  closeSheets();selId=null;axisX=false;multi=new Set();render();
+  toast('Tap the pieces you want to line up.');
+}
+function dims(it,rm){
+  if(effAuto(it,rm))it.s=trueS(it,rm);
+  const v=pv(P(it.a)),w=dispW(it)*W;return {w,hh:w*v.h/v.w};
+}
+/* Put a piece's top / middle / bottom at pixel row `t`; its size can change with its row, so settle in a few passes. */
+function setRow(it,rm,kind,t){
+  for(let k=0;k<4;k++){
+    const {hh}=dims(it,rm);
+    it.y=(kind==='top'?t+hh/2:kind==='bottom'?t-hh/2:t)/H;
+  }
+}
+function alignMulti(op){
+  const rm=R(),all=rm.items.filter(i=>multi&&multi.has(i.id)),list=all.filter(i=>!i.lk);
+  if(op==='done'){multi=null;render();return;}
+  if(all.length<2){toast('Tap at least two pieces first.');return;}
+  if(list.length<all.length)toast('Locked pieces were left where they are.');
+  if(list.length<2&&op!=='stack'){ if(list.length<all.length)return; }
+  remember();
+  const box=i=>{const d=dims(i,rm);return {l:i.x*W-d.w/2,r:i.x*W+d.w/2,t:i.y*H-d.hh/2,b:i.y*H+d.hh/2,w:d.w,hh:d.hh};};
+  const all2=all.map(box);
+  if(op==='left'){const m=Math.min(...all2.map(b=>b.l));for(const i of list)i.x=(m+dims(i,rm).w/2)/W;}
+  else if(op==='right'){const m=Math.max(...all2.map(b=>b.r));for(const i of list)i.x=(m-dims(i,rm).w/2)/W;}
+  else if(op==='cx'){const m=all2.reduce((a,b)=>a+(b.l+b.r)/2,0)/all2.length;for(const i of list)i.x=m/W;}
+  else if(op==='top'){const m=Math.min(...all2.map(b=>b.t));for(const i of list)setRow(i,rm,'top',m);}
+  else if(op==='bottom'){const m=Math.max(...all2.map(b=>b.b));for(const i of list)setRow(i,rm,'bottom',m);}
+  else if(op==='cy'){const m=all2.reduce((a,b)=>a+(b.t+b.b)/2,0)/all2.length;for(const i of list)setRow(i,rm,'mid',m);}
+  else if(op==='spread'){
+    if(all.length<3){toast('Pick three or more pieces to space out.');history.pop();undoBtn.disabled=!history.length;return;}
+    const o=[...all].sort((a,b)=>a.x-b.x),bx=o.map(box);
+    const span=bx[bx.length-1].r-bx[0].l,tot=bx.reduce((a,b)=>a+b.w,0),gap=(span-tot)/(o.length-1);
+    let cur=bx[0].l;
+    o.forEach((i,k)=>{if(!i.lk)i.x=(cur+bx[k].w/2)/W;cur+=bx[k].w+gap;});
+  }
+  else if(op==='stack'){
+    const o=[...all].sort((a,b)=>b.y-a.y),cx=all2.reduce((a,b)=>a+(b.l+b.r)/2,0)/all2.length;
+    let top=box(o[0]).t;
+    o.forEach((i,k)=>{
+      if(k>0&&!i.lk){setRow(i,rm,'bottom',top);}
+      if(!i.lk)i.x=cx/W;
+      top=box(i).t;
+    });
+    rm.items=rm.items.filter(i=>!all.includes(i)).concat(o);   // lowest first, so the top one is drawn in front
+  }
+  render();save();
+}
+$('#multiBar').addEventListener('click',e=>{const b=e.target.closest('[data-al]');if(b)alignMulti(b.dataset.al);});
+
+/* ---------- Swipe down on a sheet to close it ---------- */
+for(const sh of document.querySelectorAll('.sheet')){
+  let t=null;
+  sh.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.target.closest('#photoBox')){t=null;return;}
+    t={x:e.touches[0].clientX,y:e.touches[0].clientY,top:sh.scrollTop<=0};
+  },{passive:true});
+  sh.addEventListener('touchend',e=>{
+    if(!t)return;const c=e.changedTouches[0],dx=c.clientX-t.x,dy=c.clientY-t.y;
+    if(t.top&&dy>110&&dy>Math.abs(dx)*1.8){
+      if(!pieceSheet.hidden){draft=null;openSheet(libSheet);}else closeSheets();
+    }
+    t=null;
+  },{passive:true});
+}
 
 /* ---------- File pickers and paste ---------- */
 function takeFiles(files){
