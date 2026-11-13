@@ -111,10 +111,9 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .thumb{
   flex:none;width:64px;height:64px;padding:6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;
   background:
-    linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 0 0/12px 12px,
-    linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 6px 6px/12px 12px,
-    var(--card);
-}
+    linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 0 0/12px 12px,
+    linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 6px 6px/12px 12px,
+    #eef0ec;}
 .thumb img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
 .item.multi{outline:3px dashed var(--brass);outline-offset:3px}
 #multiBar .count{flex:none;font-weight:600;font-size:13px;color:var(--muted);padding:0 6px}
@@ -166,7 +165,7 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .storechip button{border-radius:0 10px 10px 0;border-left:0;padding:0 12px}
 #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .card{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.card .ph{aspect-ratio:4/3;border-radius:8px;background:var(--plaster);display:grid;place-items:center;overflow:hidden}
+.card .ph{aspect-ratio:4/3;border-radius:8px;background:linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 0 0/16px 16px,linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 8px 8px/16px 16px,#eef0ec;display:grid;place-items:center;overflow:hidden}
 .card .ph img{max-width:100%;max-height:100%;object-fit:contain;display:block}
 .card b{font-size:14px;line-height:1.2;overflow-wrap:anywhere}
 .card span{font-size:12.5px;color:var(--muted);line-height:1.25;overflow-wrap:anywhere}
@@ -178,9 +177,9 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #photoBox{position:relative;height:230px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:14px;touch-action:none;
   background:
-    linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 0 0/14px 14px,
-    linear-gradient(45deg,var(--line) 25%,transparent 25% 75%,var(--line) 75%) 7px 7px/14px 14px,
-    var(--card)}
+    linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 0 0/14px 14px,
+    linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 7px 7px/14px 14px,
+    #eef0ec}
 #photoBox img{max-width:100%;max-height:228px;display:block;pointer-events:none;-webkit-user-drag:none}
 .erbox{position:absolute;border:2px dashed var(--danger);background:rgba(190,70,50,.3);pointer-events:none}
 .check{display:flex;align-items:center;gap:10px;font-weight:600;min-height:44px}
