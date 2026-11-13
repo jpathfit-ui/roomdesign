@@ -98,6 +98,12 @@ h1 small{display:block;font-family:var(--body);font-weight:400;font-size:13px;le
 }
 #chip{left:10px;cursor:pointer}
 #sizeChip{right:10px;min-height:34px;cursor:pointer;font-family:inherit;background:var(--brass);color:#1c1c1c}
+#wallSvg{position:absolute;inset:0;width:100%;height:100%;z-index:10001;pointer-events:none}
+.wH{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;z-index:10002;display:grid;place-items:center;font-size:17px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45);cursor:move;touch-action:none;color:#1c1c1c;background:#8FD3F0}
+.wH::before{content:"";position:absolute;inset:-8px}
+#wallBar{padding:10px 16px 12px;display:flex;flex-direction:column;gap:8px}
+#wallBar p{margin:0;font-size:13px;color:var(--muted);max-width:65ch}
+#wallBar label.chk{display:flex;gap:10px;align-items:center;font-size:14px}
 #calSvg{position:absolute;inset:0;width:100%;height:100%;z-index:10001;pointer-events:none}
 #calSvg line{stroke-width:3;stroke-linecap:round}
 .calH{
@@ -266,6 +272,11 @@ body.panelHidden footer{display:none}
       </button>
     </div>
     <svg id="calSvg" hidden><line id="calLa" stroke="#E2B24C"/><line id="calLb" stroke="#8FD3F0"/></svg>
+    <svg id="wallSvg"><polygon id="wallPoly" fill="rgba(143,211,240,.14)" stroke="#8FD3F0" stroke-width="3" stroke-linejoin="round" style="display:none"/>
+      <path id="wallHalo" fill="none" stroke="#000" stroke-opacity=".4" stroke-width="7" stroke-linecap="round"/>
+      <path id="wallGridP" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+      <polygon id="wallSelP" fill="none" stroke="#E2B24C" stroke-width="2.5" stroke-dasharray="7 5" style="display:none"/></svg>
+    <div class="wH" data-i="0" hidden>↖</div><div class="wH" data-i="1" hidden>↗</div><div class="wH" data-i="2" hidden>↘</div><div class="wH" data-i="3" hidden>↙</div>
     <div class="calH a" data-k="a" data-e="1" hidden>1</div><div class="calH a" data-k="a" data-e="2" hidden>1</div>
     <div class="calH b" data-k="b" data-e="1" hidden>2</div><div class="calH b" data-k="b" data-e="2" hidden>2</div>
   </div>
@@ -295,6 +306,7 @@ body.panelHidden footer{display:none}
     <button class="btn" type="button" data-act="fwd">To front</button>
     <button class="btn" type="button" data-act="back">To back</button>
     <button class="btn" type="button" data-act="copy">Duplicate</button>
+    <button class="btn" type="button" data-act="wall" hidden>On wall</button>
     <button class="btn" type="button" data-act="slide" aria-pressed="false">Slide ↔</button>
     <button class="btn" type="button" data-act="auto" aria-pressed="false">True size</button>
     <button class="btn" type="button" data-act="cut" aria-pressed="false">Cut out</button>
@@ -303,6 +315,18 @@ body.panelHidden footer{display:none}
     <button class="btn" type="button" data-act="details">Details</button>
     <button class="btn danger" type="button" data-act="remove">Remove</button>
     <button class="btn primary" type="button" data-act="done">Done</button>
+  </div>
+  <div id="wallBar" hidden>
+    <p id="wallHelp">Drag the four dots onto the corners of the cabinets or wall: top left, top right, bottom right, bottom left. Then type its real size. Mark an L-shape as two walls, left to right.</p>
+    <div class="pair"><input class="field" id="wallName" type="text" maxlength="30" placeholder="Name, like Back wall" autocomplete="off" aria-label="Wall name"></div>
+    <div class="pair"><input class="field" id="wallLen" type="text" inputmode="decimal" placeholder="Real length, left to right" autocomplete="off" aria-label="Real length of the wall"><span class="unit"></span></div>
+    <div class="pair"><input class="field" id="wallHt" type="text" inputmode="decimal" placeholder="Real height, floor to top" autocomplete="off" aria-label="Real height of the wall"><span class="unit"></span></div>
+    <label class="chk"><input type="checkbox" id="wallJoin"> Turns the corner into the next wall on its right</label>
+    <div class="wrap">
+      <button class="btn primary" id="wallDone" type="button">Done</button>
+      <button class="btn danger" id="wallDelete" type="button" hidden>Delete wall</button>
+      <button class="btn" id="wallCancel" type="button">Cancel</button>
+    </div>
   </div>
   <div id="calBar" hidden>
     <p id="calHelp"></p>
@@ -440,8 +464,10 @@ body.panelHidden footer{display:none}
           <button class="btn small" id="sizeRoom" type="button">Set room size</button>
           <button class="btn small" id="resetRoom" type="button">Reset room</button>
           <button class="btn small" id="setSave" type="button">Save pieces as a set</button>
+          <button class="btn small" id="markWall" type="button">Mark a wall</button>
           <button class="btn small danger" id="deleteRoom" type="button">Delete room</button>
         </div>
+        <div id="wallList" style="display:flex;flex-direction:column;gap:6px"></div>
         <div class="pair" id="setNameRow" hidden>
           <input class="field" id="setName" type="text" maxlength="40" placeholder="Set name, like Cozy option" autocomplete="off" aria-label="Set name">
           <button class="btn primary" id="setNameSave" type="button">Save</button>
@@ -539,7 +565,7 @@ const trash=new Map();    // deleted pieces, kept so they can be restored
 let sets=[];              // [{id,name,ids:[]}]
 let unit='in';
 let selId=null,history=[],W=0,H=0,multi=null,axisX=false,panelHidden=false;
-let calMode=false,calDraft=null;
+let calMode=false,calDraft=null,wallDraft=null;
 const els=new Map();      // item id -> element
 const pix=new Map();      // piece id -> ImageData of the original picture
 const imgCache=new WeakMap();
@@ -706,7 +732,7 @@ function scaleAt(rm,y){
   return clamp(pa+(pb-pa)*(y-ya)/(yb-ya),Math.min(pa,pb),Math.max(pa,pb)*3);
 }
 const sized=rm=>scaleAt(rm,.5)>0;
-const effAuto=(it,rm)=>it.auto!==false&&sized(rm)&&hasSize(P(it.a));
+const effAuto=(it,rm)=>!it.wl&&it.auto!==false&&sized(rm)&&hasSize(P(it.a));
 function trueS(it,rm){
   const p=P(it.a),v=pv(p),asp=v.h/v.w,ar=rm.room.w/rm.room.h;let dw;
   const byH=p.h>0&&(asp>=1||!(p.w>0));
@@ -720,7 +746,7 @@ const dispW=it=>{const p=P(it.a);return it.s*pv(p).w/p.orig.w;};
 function setAnchor(it){for(const o of R().items)if(o.a===it.a)o.anc=(o===it);}
 function famFix(rm){
   const g=new Map();
-  for(const it of rm.items){if(effAuto(it,rm))continue;let a=g.get(it.a);if(!a)g.set(it.a,a=[]);a.push(it);}
+  for(const it of rm.items){if(effAuto(it,rm)||it.wl)continue;let a=g.get(it.a);if(!a)g.set(it.a,a=[]);a.push(it);}
   for(const list of g.values()){
     if(list.length<2)continue;
     const anc=list.find(i=>i.anc)||list[0];
@@ -904,6 +930,19 @@ function render(){
     if(effAuto(it,rm))it.s=trueS(it,rm);
     const v=pv(p),im=el._im;
     if(im._v!==v){im.src=v.src;im._v=v;}
+    const wq=it.wl?wallQuad(it,rm):null;
+    if(it.wl&&!wq){delete it.wl;delete it.u;delete it.v;}   // its wall or size is gone, so it becomes a free piece again
+    if(wq){
+      const bw=100,bh=100*v.h/v.w,M=homog([[0,0],[bw,0],[bw,bh],[0,bh]],wq.pts);
+      if(M){
+        el.style.left='0px';el.style.top='0px';el.style.width=bw+'px';el.style.height=bh+'px';el.style.transformOrigin='0 0';
+        el.style.transform=`matrix3d(${M[0]},${M[3]},0,${M[6]},${M[1]},${M[4]},0,${M[7]},0,0,1,0,${M[2]},${M[5]},0,${M[8]})`;
+        el.style.zIndex=idx+1;el.style.filter='';im.style.transform='';el._sh.style.display='none';
+        el.classList.toggle('multi',!!(multi&&multi.has(it.id)));
+        return;
+      }
+    }
+    el.style.transformOrigin='';el.style.transform='';
     const w=dispW(it)*W,hh=w*v.h/v.w;
     el.style.left=it.x*W+'px';el.style.top=it.y*H+'px';el.style.width=w+'px';el.style.height=hh+'px';el.style.zIndex=idx+1;
     el.classList.toggle('multi',!!(multi&&multi.has(it.id)));
@@ -913,14 +952,15 @@ function render(){
   });
   for(const [id,el] of els){if(!keep.has(id)){el.remove();els.delete(id);}}
   const s=calMode?null:sel();
-  if(s){
+  if(s&&s.wl&&wallQuad(s,rm))selbox.style.display='none';
+  else if(s){
     const v=pv(P(s.a)),w=dispW(s)*W,hh=w*v.h/v.w;
     selbox.style.display='block';selbox.style.left=s.x*W+'px';selbox.style.top=s.y*H+'px';
     selbox.style.width=w+'px';selbox.style.height=hh+'px';
     selbox.style.transform=`translate(-50%,-50%) rotate(${s.r}rad)`;
     selbox.classList.toggle('locked',!!s.lk);$('#handle').hidden=effAuto(s,rm);
   }else selbox.style.display='none';
-  calBar.hidden=!calMode;actions.hidden=!s;tray.hidden=!!s||calMode||!!multi;
+  calBar.hidden=!(calMode&&!wallDraft);$('#wallBar').hidden=!(calMode&&wallDraft);actions.hidden=!s;tray.hidden=!!s||calMode||!!multi;
   $('#multiBar').hidden=!multi||calMode;if(multi)$('#multiCount').textContent=multi.size?multi.size+' picked':'Tap pieces';
   cutRow.hidden=!(s&&!s.lk&&P(s.a).useCut&&P(s.a).cut);
   if(s){
@@ -929,9 +969,11 @@ function render(){
     for(const b of actions.querySelectorAll('[data-act]'))b.disabled=!!s.lk&&!['lock','done','details'].includes(b.dataset.act);
     tog('cut',p.useCut&&p.cut);tog('slide',axisX);tog('shadow',s.sh);tog('lock',s.lk);tog('auto',effAuto(s,rm));
     B('lock').textContent=s.lk?'Unlock':'Lock';
-    B('auto').hidden=!(sized(rm)&&hasSize(p));
+    B('auto').hidden=!(sized(rm)&&hasSize(p))||!!s.wl;
+    B('wall').hidden=!((rm.walls||[]).length||s.wl);B('wall').textContent=s.wl?'Off wall':'On wall';tog('wall',!!s.wl);
     if(!cutRow.hidden&&document.activeElement!==tolInput)tolInput.value=p.tol;
   }
+  renderWalls(s);
   renderCal();
 }
 function renderTray(){
@@ -957,7 +999,7 @@ function enterCal(){
   $('#calClear').hidden=!c;
   render();
 }
-function exitCal(){calMode=false;calDraft=null;render();}
+function exitCal(){calMode=false;calDraft=null;wallDraft=null;render();}
 function renderCal(){
   const on=calMode&&calDraft;
   calSvg.hidden=!on;
@@ -996,12 +1038,198 @@ $('#calDone').addEventListener('click',()=>{
 sizeChip.addEventListener('click',enterCal);
 $('#sizeRoom').addEventListener('click',enterCal);
 
+
+/* ---------- Walls: a marked surface that pieces slide along ---------- */
+function solve8(A,b){
+  const n=8;
+  for(let i=0;i<n;i++){
+    let m=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[m][i]))m=r;
+    [A[i],A[m]]=[A[m],A[i]];[b[i],b[m]]=[b[m],b[i]];
+    const d=A[i][i];if(Math.abs(d)<1e-12)return null;
+    for(let r=0;r<n;r++){if(r===i)continue;const f=A[r][i]/d;if(!f)continue;for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i];}
+  }
+  return b.map((v,i)=>v/A[i][i]);
+}
+function homog(s,d){   // four points to four points; 3x3 matrix, row by row
+  const A=[],b=[];
+  for(let i=0;i<4;i++){
+    const [x,y]=s[i],[u,v]=d[i];
+    A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);
+    A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v);
+  }
+  const r=solve8(A,b);return r?[...r,1]:null;
+}
+function applyH(M,x,y){const w=M[6]*x+M[7]*y+M[8];return [(M[0]*x+M[1]*y+M[2])/w,(M[3]*x+M[4]*y+M[5])/w];}
+function invH(M){
+  const [a,b,c,d,e,f,g,h2,i]=M,det=a*(e*i-f*h2)-b*(d*i-f*g)+c*(d*h2-e*g);if(!det)return null;
+  return [(e*i-f*h2)/det,-(b*i-c*h2)/det,(b*f-c*e)/det,-(d*i-f*g)/det,(a*i-c*g)/det,-(a*f-c*d)/det,(d*h2-e*g)/det,-(a*h2-b*g)/det,(a*e-b*d)/det];
+}
+const wallById=(rm,id)=>(rm.walls||[]).find(w=>w.id===id);
+function wallMap(w){   // wall units (along, up) <-> stage pixels
+  const q=w.q.map(([x,y])=>[x*W,y*H]);
+  const M=homog([[0,w.ht],[w.len,w.ht],[w.len,0],[0,0]],q);
+  const Mi=M&&invH(M);return M&&Mi?{M,Mi}:null;
+}
+function wallSizeOf(p){
+  const v=pv(p);let w=p.w>0?p.w:0,h=p.h>0?p.h:0;
+  if(w&&!h)h=w*v.h/v.w;else if(h&&!w)w=h*v.w/v.h;
+  return w&&h?{w,h}:null;
+}
+function wallQuad(it,rm){   // the four corners of a piece on its wall, in stage pixels: top left, top right, bottom right, bottom left
+  const wl=wallById(rm,it.wl),p=P(it.a);if(!wl||!p)return null;
+  const m=wallMap(wl),s=wallSizeOf(p);if(!m||!s)return null;
+  const X0=it.u-s.w/2,X1=it.u+s.w/2,Y0=it.v,Y1=it.v+s.h;
+  let pts=[[X0,Y1],[X1,Y1],[X1,Y0],[X0,Y0]].map(([X,Y])=>applyH(m.M,X,Y));
+  if(it.f)pts=[pts[1],pts[0],pts[3],pts[2]];
+  return {pts,s,wl,m};
+}
+function wallPtr(it,cx,cy){
+  const wl=wallById(R(),it.wl),m=wl&&wallMap(wl);if(!m)return null;
+  const r=stage.getBoundingClientRect();return applyH(m.Mi,cx-r.left,cy-r.top);
+}
+function pointInQuad(x,y,q){
+  let ins=false;
+  for(let i=0,j=3;i<4;j=i++){
+    if((q[i][1]>y)!==(q[j][1]>y)&&x<(q[j][0]-q[i][0])*(y-q[i][1])/(q[j][1]-q[i][1])+q[i][0])ins=!ins;
+  }
+  return ins;
+}
+function convexQuad(q){
+  let sg=0;
+  for(let i=0;i<4;i++){
+    const a=q[i],b=q[(i+1)%4],c=q[(i+2)%4],cr=(b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);
+    if(Math.abs(cr)<1e-5)return false;
+    if(!sg)sg=Math.sign(cr);else if(Math.sign(cr)!==sg)return false;
+  }
+  return true;
+}
+function attachWall(it,rm){
+  const cx=it.x*W,cy=it.y*H;let best=null,bd=1e9;
+  for(const wl of rm.walls){
+    const q=wl.q.map(([x,y])=>[x*W,y*H]);
+    const d=pointInQuad(cx,cy,q)?-1:Math.hypot(cx-(q[0][0]+q[1][0]+q[2][0]+q[3][0])/4,cy-(q[0][1]+q[1][1]+q[2][1]+q[3][1])/4);
+    if(d<bd){bd=d;best=wl;}
+  }
+  const m=wallMap(best),s=wallSizeOf(P(it.a));
+  const X=m?applyH(m.Mi,cx,cy)[0]:best.len/2;
+  it.wl=best.id;it.u=clamp(X,s.w/2,Math.max(s.w/2,best.len-s.w/2));it.v=0;it.r=0;
+}
+function offWall(it){
+  const rm=R(),wq=wallQuad(it,rm),p=P(it.a);
+  if(wq){
+    const [a,b,c,d]=wq.pts;
+    it.x=clamp((a[0]+b[0]+c[0]+d[0])/4/W,-.25,1.25);it.y=clamp((a[1]+b[1]+c[1]+d[1])/4/H,-.25,1.25);
+    const wpx=(Math.hypot(b[0]-a[0],b[1]-a[1])+Math.hypot(c[0]-d[0],c[1]-d[1]))/2;
+    it.s=clamp(wpx/W*p.orig.w/pv(p).w,.01,6);
+  }
+  delete it.wl;delete it.u;delete it.v;it.r=0;it.auto=true;
+}
+function copyOnWall(it,rm){   // next free spot beside a piece, carrying on round the corner
+  const s=wallSizeOf(P(it.a)),wl=wallById(rm,it.wl);if(!s||!wl)return null;
+  const i=rm.walls.indexOf(wl);let nu=it.u+s.w,nw=wl.id;
+  if(nu+s.w/2>wl.len+.5){
+    if(wl.join&&rm.walls[i+1]){nw=rm.walls[i+1].id;nu=s.w/2;}
+    else{
+      nu=it.u-s.w;
+      if(nu-s.w/2<-.5){if(i>0&&rm.walls[i-1].join){nw=rm.walls[i-1].id;nu=rm.walls[i-1].len-s.w/2;}else return null;}
+    }
+  }
+  return Object.assign({},it,{id:uid(),lk:false,anc:false,wl:nw,u:nu});
+}
+function wallDrag(it,cx,cy){
+  const rm=R(),s=wallSizeOf(P(it.a));let wl=wallById(rm,it.wl);if(!wl||!s)return;
+  let q=wallPtr(it,cx,cy);if(!q)return;
+  let u=q[0]+(g.wu||0),v=axisX?it.v:q[1]+(g.wv||0);
+  const i=rm.walls.indexOf(wl);
+  const hop=nw=>{it.wl=nw.id;const q2=wallPtr(it,cx,cy);return q2;};
+  if(u+s.w/2>wl.len+s.w*.5&&wl.join&&rm.walls[i+1]){
+    const q2=hop(rm.walls[i+1]);if(q2){g.wu=s.w/2-q2[0];g.wv=it.v-q2[1];u=s.w/2;}
+  }else if(u-s.w/2<-s.w*.5&&i>0&&rm.walls[i-1].join){
+    const pw=rm.walls[i-1],q2=hop(pw);if(q2){g.wu=pw.len-s.w/2-q2[0];g.wv=it.v-q2[1];u=pw.len-s.w/2;}
+  }
+  wl=wallById(rm,it.wl);
+  const tol=3,edges=[s.w/2,wl.len-s.w/2];
+  for(const o of rm.items){
+    if(o===it||o.wl!==wl.id)continue;const os=wallSizeOf(P(o.a));if(!os)continue;
+    if(o.v>=v+s.h||o.v+os.h<=v)continue;
+    edges.push(o.u+os.w/2+s.w/2,o.u-os.w/2-s.w/2);
+  }
+  let best=null;for(const e of edges)if(Math.abs(e-u)<tol&&(best===null||Math.abs(e-u)<Math.abs(best-u)))best=e;
+  if(best!==null)u=best;
+  it.u=clamp(u,s.w/2,Math.max(s.w/2,wl.len-s.w/2));
+  if(!axisX){v=Math.abs(v)<tol?0:v;it.v=clamp(v,0,wl.ht*3);}
+}
+function gridPath(w,Mp){   // dots across the wall
+  const m=Mp||wallMap(w);if(!m)return '';
+  let step=unit==='cm'?5.906:6;
+  while((w.len/step+1)*(w.ht/step+1)>2200)step*=2;
+  let d='';
+  for(let X=0;X<=w.len+.01;X+=step)for(let Y=0;Y<=w.ht+.01;Y+=step){
+    const [px,py]=applyH(m.M,Math.min(X,w.len),Math.min(Y,w.ht));
+    d+='M'+px.toFixed(1)+' '+py.toFixed(1)+'l0 .01';
+  }
+  return d;
+}
+function renderWalls(s){
+  const rm=R(),gp=$('#wallGridP'),hp=$('#wallHalo'),sp=$('#wallSelP'),dp=$('#wallPoly');
+  let grid=null;
+  const hs=stage.querySelectorAll('.wH'),draft=calMode&&wallDraft;
+  if(draft){
+    grid={q:wallDraft.q,len:readNum($('#wallLen'))||96,ht:readNum($('#wallHt'))||36};
+    dp.style.display='';dp.setAttribute('points',wallDraft.q.map(p=>(p[0]*W).toFixed(1)+','+(p[1]*H).toFixed(1)).join(' '));
+  }else{
+    dp.style.display='none';
+    if(s&&s.wl)grid=wallById(rm,s.wl);
+  }
+  hs.forEach(hd=>{hd.hidden=!draft;if(draft){const q=wallDraft.q[+hd.dataset.i];hd.style.left=q[0]*W+'px';hd.style.top=q[1]*H+'px';}});
+  const d=grid?gridPath(grid):'';gp.setAttribute('d',d);hp.setAttribute('d',d);
+  const wq=!calMode&&s&&s.wl?wallQuad(s,rm):null;
+  sp.style.display=wq?'':'none';
+  if(wq)sp.setAttribute('points',wq.pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));
+}
+function enterWall(id){
+  closeSheets();setPanel(false);selId=null;calMode=true;calDraft=null;
+  const rm=R(),w=id&&wallById(rm,id);
+  wallDraft=w?JSON.parse(JSON.stringify(w)):{id:null,name:'',q:[[.2,.4],[.8,.4],[.8,.8],[.2,.8]],len:0,ht:0,join:false};
+  $('#wallName').value=wallDraft.name||'';
+  $('#wallLen').value=wallDraft.len>0?fmt(wallDraft.len):'';
+  $('#wallHt').value=wallDraft.ht>0?fmt(wallDraft.ht):'';
+  $('#wallJoin').checked=!!wallDraft.join;
+  $('#wallDelete').hidden=!w;
+  render();
+}
+$('#markWall').addEventListener('click',()=>enterWall(null));
+$('#wallLen').addEventListener('input',()=>renderWalls(null));
+$('#wallHt').addEventListener('input',()=>renderWalls(null));
+$('#wallCancel').addEventListener('click',exitCal);
+$('#wallDone').addEventListener('click',()=>{
+  const d=wallDraft;if(!d)return;
+  const len=readNum($('#wallLen')),ht=readNum($('#wallHt'));
+  if(!len||!ht){toast('Type the real length and height of what you marked.');return;}
+  if(!convexQuad(d.q)){toast('The four dots should make a four-sided shape: top left, top right, bottom right, bottom left.');return;}
+  const rm=R();rm.walls=rm.walls||[];
+  const w=d.id?wallById(rm,d.id):null;
+  const o={id:d.id||uid(),name:$('#wallName').value.trim()||('Wall '+(rm.walls.length+(w?0:1))),q:d.q,len,ht,join:$('#wallJoin').checked};
+  if(w)Object.assign(w,o);else rm.walls.push(o);
+  exitCal();save();
+  toast('Wall saved. Pick a piece and tap On wall to fit it to the wall.');
+});
+$('#wallDelete').addEventListener('click',async()=>{
+  const rm=R(),w=wallById(rm,wallDraft&&wallDraft.id);if(!w)return;
+  if(!await askConfirm('Delete "'+w.name+'"?','Pieces on it stay in the room as free pieces.','Delete'))return;
+  for(const it of rm.items)if(it.wl===w.id)offWall(it);
+  rm.walls=rm.walls.filter(x=>x!==w);exitCal();save();
+});
+
 /* ---------- Touch and mouse ---------- */
 const ptrs=new Map();let g=null;
 const centerOf=it=>{const r=stage.getBoundingClientRect();return {x:r.left+it.x*W,y:r.top+it.y*H};};
 const snapAngle=r=>{const q=Math.PI/2,n=Math.round(r/q)*q;return Math.abs(r-n)<.14?n:r;};
 const wrapA=a=>Math.atan2(Math.sin(a),Math.cos(a));
-function startDrag(x,y,dirty){const it=sel();g={mode:'drag',px:x,py:y,x0:it.x,y0:it.y,dirty:!!dirty};}
+function startDrag(x,y,dirty){
+  const it=sel();g={mode:'drag',px:x,py:y,x0:it.x,y0:it.y,dirty:!!dirty};
+  if(it.wl){const q=wallPtr(it,x,y);if(q){g.wu=it.u-q[0];g.wv=it.v-q[1];}}
+}
 function startPinch(dirty){
   const it=sel(),[p,q]=[...ptrs.values()];
   g={mode:'pinch',d0:Math.hypot(q.x-p.x,q.y-p.y)||1,a0:Math.atan2(q.y-p.y,q.x-p.x),mx:(p.x+q.x)/2,my:(p.y+q.y)/2,
@@ -1014,8 +1242,8 @@ well.addEventListener('pointerdown',e=>{
   try{well.setPointerCapture(e.pointerId);}catch(_){}
   e.preventDefault();
   if(calMode){
-    const hd=e.target.closest('.calH');
-    g=(hd&&ptrs.size===1)?{mode:'cal',k:hd.dataset.k,e:hd.dataset.e}:null;
+    const hd=e.target.closest('.calH'),wh=e.target.closest('.wH');
+    g=(wh&&wallDraft&&ptrs.size===1)?{mode:'wall',i:+wh.dataset.i}:(hd&&!wallDraft&&ptrs.size===1)?{mode:'cal',k:hd.dataset.k,e:hd.dataset.e}:null;
     return;
   }
   const onHandle=e.target.closest('#handle')||e.target.closest('#rot'),turn=!!e.target.closest('#rot'),itemEl=e.target.closest('.item');
@@ -1024,15 +1252,16 @@ well.addEventListener('pointerdown',e=>{
       const it=sel(),c=centerOf(it);
       g={mode:turn?'turn':'size',d0:Math.hypot(e.clientX-c.x,e.clientY-c.y)||1,a0:Math.atan2(e.clientY-c.y,e.clientX-c.x),s0:it.s,r0:it.r,dirty:false};
     }else if(itemEl&&multi){
-      const id=itemEl.dataset.id;if(multi.has(id))multi.delete(id);else multi.add(id);
+      const id=itemEl.dataset.id;if(R().items.find(i=>i.id===id&&i.wl)){toast('Pieces on a wall slide along it. Take it off the wall to line it up with others.');g={mode:'hold'};return;}
+      if(multi.has(id))multi.delete(id);else multi.add(id);
       g={mode:'hold'};render();
     }else if(itemEl){
-      if(selId!==itemEl.dataset.id)axisX=false;
+      if(selId!==itemEl.dataset.id){const t=R().items.find(i=>i.id===itemEl.dataset.id);axisX=!!(t&&t.wl);}
       selId=itemEl.dataset.id;
       if(sel().lk)g={mode:'hold'};else startDrag(e.clientX,e.clientY,false);
       render();
     }else g={mode:'tap',x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,moved:false};
-  }else if(ptrs.size===2&&sel()&&!sel().lk){
+  }else if(ptrs.size===2&&sel()&&!sel().lk&&!sel().wl){
     startPinch(g&&g.dirty);
   }
 });
@@ -1044,13 +1273,20 @@ well.addEventListener('pointermove',e=>{
     const r=stage.getBoundingClientRect(),l=calDraft&&calDraft[g.k];if(!l)return;
     l['x'+g.e]=clamp((e.clientX-r.left)/W,0,1);l['y'+g.e]=clamp((e.clientY-r.top)/H,0,1);renderCal();return;
   }
+  if(g.mode==='wall'){
+    const r=stage.getBoundingClientRect();
+    if(wallDraft)wallDraft.q[g.i]=[clamp((e.clientX-r.left)/W,0,1),clamp((e.clientY-r.top)/H,0,1)];
+    renderWalls(null);return;
+  }
   if(g.mode==='tap'){g.lx=e.clientX;g.ly=e.clientY;if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>8)g.moved=true;return;}
   const it=sel();if(!it)return;
   const fixed=effAuto(it,R());
   if(g.mode==='drag'){
     const dx=e.clientX-g.px,dy=e.clientY-g.py;
     if(!g.dirty&&Math.hypot(dx,dy)<3)return;
-    touch();it.x=clamp(g.x0+dx/W,-.25,1.25);it.y=axisX?g.y0:clamp(g.y0+dy/H,-.25,1.25);
+    touch();
+    if(it.wl)wallDrag(it,e.clientX,e.clientY);
+    else{it.x=clamp(g.x0+dx/W,-.25,1.25);it.y=axisX?g.y0:clamp(g.y0+dy/H,-.25,1.25);}
   }else if(g.mode==='size'||g.mode==='turn'){
     const c=centerOf(it),d=Math.hypot(e.clientX-c.x,e.clientY-c.y),a=Math.atan2(e.clientY-c.y,e.clientX-c.x);
     if(g.mode==='size'){if(fixed)return;touch();it.s=clamp(g.s0*d/g.d0,.01,6);setAnchor(it);}
@@ -1080,7 +1316,7 @@ function endPtr(e){
     }
     return;
   }
-  if(g.mode==='cal'||g.mode==='hold'){if(ptrs.size===0)g=null;return;}
+  if(g.mode==='cal'||g.mode==='wall'||g.mode==='hold'){if(ptrs.size===0)g=null;return;}
   const dirty=g.dirty;
   if(dirty)save();
   if(ptrs.size===1&&sel()){const [p]=[...ptrs.values()];startDrag(p.x,p.y,dirty);}
@@ -1118,11 +1354,24 @@ actions.addEventListener('click',async e=>{
     remember();items.splice(i,1);if(act==='fwd')items.push(it);else items.unshift(it);
     render();save();toast(act==='fwd'?'Moved in front of the other pieces.':'Moved behind the other pieces.');return;
   }
+  if(act==='wall'){
+    if(it.wl){remember();offWall(it);render();save();toast('Off the wall. It is a free piece again.');return;}
+    if(!(rm.walls||[]).length){toast('Mark a wall first: Menu, My rooms, Settings, Mark a wall.');return;}
+    if(!wallSizeOf(p)){toast('Add its width or height in Details first, so it fits the wall to size.');return;}
+    remember();attachWall(it,rm);axisX=true;render();save();
+    toast('On the wall. Drag it sideways along the wall. Slide turns off to move it up or down.');return;
+  }
   remember();
   if(act==='flip')it.f=!it.f;
   else if(act==='shadow')it.sh=!it.sh;
   else if(act==='lock')it.lk=!it.lk;
   else if(act==='auto'){it.auto=!effAuto(it,rm);if(!it.auto)toast('Now sized by hand. Tap True size to snap back.');}
+  else if(act==='copy'&&it.wl){
+    const c=copyOnWall(it,rm);
+    if(!c){history.pop();undoBtn.disabled=!history.length;toast('No room left on this wall.');return;}
+    items.push(c);selId=c.id;axisX=true;
+    toast('Duplicated along the wall, and round the corner if it turns. Drag it sideways to adjust.');
+  }
   else if(act==='copy'){
     const w=dispW(it),gap=w*1.04,nx=it.x+gap<=1.05?it.x+gap:it.x-gap;
     const c=Object.assign({},it,{id:uid(),lk:false,anc:false,x:clamp(nx,-.2,1.2)});items.push(c);selId=c.id;axisX=true;
@@ -1737,6 +1986,9 @@ function renderRooms(){
       onclick:()=>{if(!(cur&&roomSettings)){roomSettings=true;if(!cur)goRoom(r.id);}else roomSettings=false;renderRooms();}});
     box.append(h('div',{class:'roomrow'},open,st));
   }
+  const wl=$('#wallList');wl.textContent='';
+  for(const w of rm.walls||[])wl.append(h('div',{class:'saved'},h('div',{class:'btn open',style:'cursor:default'},h('b',{text:w.name}),h('span',{text:fmt(w.len)+' × '+fmt(w.ht)+' '+unit+(w.join?' · turns a corner':'')})),
+    h('button',{type:'button',class:'btn',text:'Edit',onclick:()=>enterWall(w.id)})));
   $('#roomPanel').hidden=!roomSettings;
   $('#roomPanelTitle').textContent='Settings for '+rm.name;
   $('#roomName').value=rm.name;
@@ -1812,7 +2064,7 @@ function migrate(d){
     delete d.assets;
   }
   for(const r of d.rooms){
-    r.id=r.id||uid();r.name=String(r.name||'Room');if(r.cal===undefined)r.cal=null;
+    r.id=r.id||uid();r.name=String(r.name||'Room');r.walls=Array.isArray(r.walls)?r.walls.filter(w=>w&&w.id&&Array.isArray(w.q)&&w.q.length===4&&w.len>0&&w.ht>0):[];if(r.cal===undefined)r.cal=null;
     r.items=r.items.filter(i=>i&&lib.has(i.a));
   }
   if(!d.rooms.some(r=>r.id===d.cur))d.cur=d.rooms[0].id;
@@ -1869,12 +2121,33 @@ async function saveFile(name,blob,type,okMsg){
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
 }
 const slug=s=>s.replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-').toLowerCase();
+function drawTri(x,im,s0,s1,s2,d0,d1,d2){
+  const sx1=s1[0]-s0[0],sy1=s1[1]-s0[1],sx2=s2[0]-s0[0],sy2=s2[1]-s0[1],det=sx1*sy2-sx2*sy1;if(!det)return;
+  const dx1=d1[0]-d0[0],dy1=d1[1]-d0[1],dx2=d2[0]-d0[0],dy2=d2[1]-d0[1];
+  const a=(dx1*sy2-dx2*sy1)/det,c=(-dx1*sx2+dx2*sx1)/det,b=(dy1*sy2-dy2*sy1)/det,d=(-dy1*sx2+dy2*sx1)/det;
+  x.save();x.beginPath();
+  // grow the triangle a touch from its centre so neighbouring triangles overlap and leave no seam
+  const cx=(d0[0]+d1[0]+d2[0])/3,cy=(d0[1]+d1[1]+d2[1])/3,gr=p=>{const l=Math.hypot(p[0]-cx,p[1]-cy)||1,k=(l+.7)/l;return [cx+(p[0]-cx)*k,cy+(p[1]-cy)*k];};
+  const e0=gr(d0),e1=gr(d1),e2=gr(d2);x.moveTo(e0[0],e0[1]);x.lineTo(e1[0],e1[1]);x.lineTo(e2[0],e2[1]);x.closePath();x.clip();
+  x.setTransform(a,b,c,d,d0[0]-a*s0[0]-c*s0[1],d0[1]-b*s0[0]-d*s0[1]);
+  x.drawImage(im,0,0);x.restore();
+}
+function drawWarped(x,im,pts){   // a flat picture bent onto four corners (perspective)
+  const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height,M=homog([[0,0],[1,0],[1,1],[0,1]],pts);if(!M)return;
+  const n=14,P2=(i,j)=>applyH(M,i/n,j/n),S=(i,j)=>[i/n*iw,j/n*ih];
+  for(let j=0;j<n;j++)for(let i=0;i<n;i++){
+    drawTri(x,im,S(i,j),S(i+1,j),S(i,j+1),P2(i,j),P2(i+1,j),P2(i,j+1));
+    drawTri(x,im,S(i+1,j),S(i+1,j+1),S(i,j+1),P2(i+1,j),P2(i+1,j+1),P2(i,j+1));
+  }
+}
 async function composite(){
   const rm=R(),r=rm.room,k=Math.min(1,2200/Math.max(r.w,r.h)),c=makeCanvas(r.w*k,r.h*k),x=c.getContext('2d'),cw=c.width,ch=c.height;
   x.drawImage(await imgOf(r),0,0,cw,ch);
   for(const it of rm.items){
     const p=P(it.a);if(!p)continue;
     const v=pv(p),im=await imgOf(v),w=dispW(it)*cw,hh=w*v.h/v.w;
+    const wq=it.wl?wallQuad(it,rm):null;
+    if(wq){drawWarped(x,im,wq.pts.map(q=>[q[0]/W*cw,q[1]/H*ch]));continue;}
     if(it.sh){
       const ew=w*.92,eh=Math.max(w*.18,cw*.008);
       x.save();x.translate(it.x*cw,it.y*ch+hh/2);x.scale(1,eh/ew);
@@ -1919,6 +2192,7 @@ document.addEventListener('keydown',e=>{
   const items=R().items;
   if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();remember();items.splice(items.indexOf(it),1);selId=null;renderTray();render();save();return;}
   const step=e.shiftKey?.02:.005,mv={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+  if(mv&&it.wl){e.preventDefault();remember();const k=e.shiftKey?6:1;it.u+=mv[0]*k;it.v=Math.max(0,it.v-mv[1]*k);render();save();return;}
   if(mv){e.preventDefault();remember();it.x=clamp(it.x+mv[0]*step,-.25,1.25);it.y=clamp(it.y+mv[1]*step,-.25,1.25);render();save();}
 });
 
