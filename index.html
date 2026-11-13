@@ -166,7 +166,8 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .card{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .card .ph{aspect-ratio:4/3;border-radius:8px;background:linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 0 0/16px 16px,linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 8px 8px/16px 16px,#eef0ec;display:grid;place-items:center;overflow:hidden}
-.card .ph img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.card .ph{position:relative}
+.card .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
 .card b{font-size:14px;line-height:1.2;overflow-wrap:anywhere}
 .card span{font-size:12.5px;color:var(--muted);line-height:1.25;overflow-wrap:anywhere}
 .card .wrap{gap:6px;margin-top:auto}
@@ -1094,7 +1095,7 @@ function renderLib(){
   for(const p of list){
     const dims=dimText(p);
     grid.append(h('div',{class:'card'},
-      h('div',{class:'ph'},h('img',{alt:'',src:pv(p).src,loading:'lazy'})),
+      h('div',{class:'ph'},h('img',{alt:'',src:pv(p).src})),
       h('b',{text:p.name}),
       h('span',{text:[p.type,p.store].filter(Boolean).join(' · ')}),
       h('span',{},dims?document.createTextNode(dims):h('span',{class:'tag warn',text:'No size yet'}),p.sample?h('span',{class:'tag',text:'Sample',style:'margin-left:6px'}):null),
