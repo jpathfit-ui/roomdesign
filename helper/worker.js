@@ -183,6 +183,10 @@ function parsePage(html, baseUrl) {
   while ((m = compact.exec(plain)) && n++ < 30) {
     add({ W: 'width', D: 'depth', H: 'height', L: 'length' }[m[3].toUpperCase()], toInches(parseFloat(m[1]), m[2]));
   }
+  // Many stores (Walmart among them) keep the specification table as data inside a script, not as visible text.
+  if (!found.some(f => /width|depth|height|length|diameter/.test(f.label))) {
+    for (const ms of embeddedSizes(html)) add(ms.label, ms.inches);
+  }
   return { name, imageUrl, images: collectImages(html, baseUrl, imageUrl), measures: found };
 }
 
@@ -389,4 +393,18 @@ function sizesFromText(t) {
     }
   }
   return out;
+}
+
+// Looks through the whole page, scripts included, for the word "dimensions" followed by sizes.
+function embeddedSizes(html) {
+  const re = /dimension/gi;
+  let m, n = 0;
+  while ((m = re.exec(html)) && n++ < 40) {
+    const win = decode(html.slice(Math.max(0, m.index - 40), m.index + 260))
+      .replace(/\\u0026/g, '&').replace(/\\u00d7/gi, '×').replace(/\\"/g, '"').replace(/\\\//g, '/')
+      .replace(/<[^>]+>/g, ' ');
+    const ms = sizesFromText(win);
+    if (ms.length >= 2) return ms;
+  }
+  return [];
 }
