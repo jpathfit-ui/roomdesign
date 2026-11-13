@@ -368,10 +368,14 @@ function sizesFromText(t) {
       const order = hMatch ? [hMatch[1] || hMatch[4], hMatch[2] || hMatch[5], hMatch[3] || hMatch[6]].map(x => x.toUpperCase()) : null;
       let width, depth, height;
       if (order && order.includes('H') && new Set(order).size === 3) {
-        const hi = order.indexOf('H');
-        height = v[hi];
-        const flat = v.filter((_, i) => i !== hi);
-        width = Math.max(...flat); depth = Math.min(...flat);
+        // Follow the order the store prints. Length is the long side, so with L and W present, L is the width and W the depth.
+        // With W and D, W is the width and D the depth.
+        const at = (c) => v[order.indexOf(c)];
+        height = at('H');
+        if (order.includes('L')) {
+          width = at('L');
+          depth = at(order.includes('W') ? 'W' : 'D');
+        } else { width = at('W'); depth = at('D'); }
       } else {
         height = v[2];
         width = Math.max(v[0], v[1]); depth = Math.min(v[0], v[1]);
