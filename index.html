@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Room Designer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -163,6 +166,14 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .roomrow .open{flex:1;min-width:0;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:0;padding:6px 14px;white-space:normal;text-align:left}
 .roomrow .open span{font-weight:400;font-size:13px;color:var(--muted)}
 .roomrow .open.on span{color:inherit;opacity:.75}
+#menuList{display:flex;flex-direction:column}
+.msec{border-bottom:1px solid var(--line)}
+.mhead{width:100%;display:flex;align-items:center;gap:10px;min-height:60px;padding:0 4px;background:none;border:0;font-size:19px;font-weight:600;text-align:left;cursor:pointer;touch-action:manipulation}
+.mhead .n{margin-left:auto;font-size:14px;font-weight:400;color:var(--muted)}
+.mhead .chev{flex:none;width:18px;color:var(--muted);transition:transform .15s}
+.mhead[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.mbody{display:flex;flex-direction:column;gap:8px;padding:0 0 14px 4px}
+.mbody .btn{justify-content:flex-start}
 #dlg{position:fixed;inset:0;z-index:90;background:rgba(10,14,13,.6);display:grid;place-items:center;padding:24px}
 #dlg .box{width:100%;max-width:340px;background:var(--plaster);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px}
 #dlg h3{margin:0;font-size:18px;font-family:var(--display);text-transform:none;letter-spacing:-.01em;color:var(--ink)}
@@ -207,13 +218,21 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .check input{width:22px;height:22px;accent-color:var(--spruce)}
 @media (orientation:landscape) and (max-height:560px){
   body{display:grid;grid-template-columns:minmax(0,1fr) 250px;grid-template-rows:auto minmax(0,1fr)}
-  #top{grid-column:1/3;padding:calc(4px + env(safe-area-inset-top)) 12px 4px}
-  #well{grid-column:1;grid-row:2;padding:6px 10px}
-  footer{grid-column:2;grid-row:2;overflow-y:auto;border-top:0;border-left:1px solid var(--line);padding-bottom:12px}
+  body.panelHidden{grid-template-columns:minmax(0,1fr)}
+  #top{grid-column:1/-1;padding:4px max(12px,env(safe-area-inset-right)) 4px max(12px,env(safe-area-inset-left))}
+  #top h1{font-size:15px}
+  #top h1 small{margin-top:1px;font-size:12px}
+  #top .iconbtn{width:38px;height:38px}
+  #top .btn{min-height:38px}
+  #well{grid-column:1;grid-row:2;padding:4px 10px}
+  footer{grid-column:2;grid-row:2;overflow-y:auto;border-top:0;border-left:1px solid var(--line);padding-bottom:12px;padding-right:env(safe-area-inset-right)}
   footer .row{flex-wrap:wrap;overflow:visible;padding:8px 10px}
   .btn{min-height:40px}
+  .pagebar{padding-top:6px;padding-bottom:6px}
   #toast{bottom:16px}
 }
+body.panelHidden footer{display:none}
+#panelToggle{top:auto;bottom:10px;right:12px;min-height:36px;padding:0 14px;cursor:pointer;font-family:inherit}
 </style>
 </head>
 <body>
@@ -250,6 +269,7 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
     <div class="calH a" data-k="a" data-e="1" hidden>1</div><div class="calH a" data-k="a" data-e="2" hidden>1</div>
     <div class="calH b" data-k="b" data-e="1" hidden>2</div><div class="calH b" data-k="b" data-e="2" hidden>2</div>
   </div>
+  <button class="chip" id="panelToggle" type="button" data-stagebtn>Hide tools</button>
 </main>
 
 <footer>
@@ -382,10 +402,35 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
     <div class="pagebar">
       <button class="btn back" type="button" data-back aria-label="Back">‹ Back</button>
       <h2 id="menuTitle">Menu</h2>
-      <span class="spacer"></span>
+      <button class="iconbtn" id="gearBtn" type="button" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </div>
+    <div class="pbody"><div id="menuList"></div></div>
+  </div>
+</div>
+
+<div class="sheetWrap" id="placesSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="placesTitle">
+    <div class="pagebar">
+      <button class="btn back" type="button" data-back aria-label="Back">‹ Back</button>
+      <h2 id="placesTitle">My places</h2>
+      <button class="btn primary small" id="newPlace" type="button">+ New</button>
     </div>
     <div class="pbody">
-      <h3>Rooms</h3>
+      <label class="lbl">Name of the place you have open<input class="field" id="placeName" type="text" maxlength="60" autocomplete="off"></label>
+      <div id="placesList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
+<div class="sheetWrap" id="roomsSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="roomsTitle">
+    <div class="pagebar">
+      <button class="btn back" type="button" data-back aria-label="Back">‹ Back</button>
+      <h2 id="roomsTitle">My rooms</h2>
+      <label class="btn primary small" for="roomFile" data-mode="new" tabindex="0">+ Add</label>
+    </div>
+    <div class="pbody">
+      <p id="roomsFor"></p>
       <div id="roomList" style="display:flex;flex-direction:column;gap:8px"></div>
       <div class="sec" id="roomPanel" hidden>
         <h3 id="roomPanelTitle">Room settings</h3>
@@ -402,30 +447,55 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
           <button class="btn primary" id="setNameSave" type="button">Save</button>
         </div>
       </div>
-      <label class="btn" for="roomFile" data-mode="new" tabindex="0">+ Add room</label>
+    </div>
+  </div>
+</div>
 
-      <h3>Furniture</h3>
-      <button class="btn" id="myFurn" type="button">My furniture</button>
+<div class="sheetWrap" id="designsSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="designsTitle">
+    <div class="pagebar">
+      <button class="btn back" type="button" data-back aria-label="Back">‹ Back</button>
+      <h2 id="designsTitle">My designs</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="pbody">
+      <p id="designsFor"></p>
+      <div class="pair">
+        <input class="field" id="designName" type="text" maxlength="40" autocomplete="off" placeholder="Name this layout" aria-label="Layout name">
+        <button class="btn primary" id="designSave" type="button" style="flex:none">Save</button>
+      </div>
+      <div id="designList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+</div>
 
-      <h3>This design</h3>
-      <input class="field" id="designInput" type="text" maxlength="60" autocomplete="off" aria-label="Design name">
-      <div class="wrap">
-        <button class="btn small" id="newDesign" type="button">New design</button>
-        <button class="btn small" id="backup" type="button">Back up to a file</button>
-        <label class="btn small" for="backupFile" tabindex="0">Open a backup</label>
-      </div>
-      <h3>Measurements</h3>
-      <div class="wrap">
-        <button class="btn small" type="button" data-unit="in">Inches</button>
-        <button class="btn small" type="button" data-unit="cm">Centimetres</button>
-      </div>
-      <div id="helperBox">
+<div class="sheetWrap" id="settingsSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="pagebar">
+      <button class="btn back" type="button" data-back aria-label="Back">‹ Back</button>
+      <h2 id="settingsTitle">Settings</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="pbody">
+      <section class="sec">
+        <h3>Measurements</h3>
+        <div class="wrap">
+          <button class="btn small" type="button" data-unit="in">Inches</button>
+          <button class="btn small" type="button" data-unit="cm">Centimetres</button>
+        </div>
+      </section>
+      <section class="sec" id="helperBox">
         <h3>Link helper</h3>
         <input class="field" id="helperUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://roomdesign-helper.yourname.workers.dev" aria-label="Link helper address">
-      </div>
-      <h3>Saved designs</h3>
-      <div id="savedList" style="display:flex;flex-direction:column;gap:8px"></div>
-      <p>Designs and furniture save as you go, on this device only. Back up the designs you care about.</p>
+      </section>
+      <section class="sec">
+        <h3>Backup</h3>
+        <div class="wrap">
+          <button class="btn small" id="backup" type="button">Back up to a file</button>
+          <label class="btn small" for="backupFile" tabindex="0">Open a backup</label>
+        </div>
+        <p>Places, rooms and furniture save as you go, on this device only. Back up the ones you care about.</p>
+      </section>
     </div>
   </div>
 </div>
@@ -445,8 +515,9 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 const $=s=>document.querySelector(s);
 const well=$('#well'),stage=$('#stage'),roomImg=$('#room'),selbox=$('#selbox'),tray=$('#tray'),actions=$('#actions'),
       cutRow=$('#cutRow'),tolInput=$('#tol'),undoBtn=$('#undo'),chip=$('#chip'),sizeChip=$('#sizeChip'),
-      calBar=$('#calBar'),calSvg=$('#calSvg'),libSheet=$('#libSheet'),pieceSheet=$('#pieceSheet'),menuSheet=$('#menuSheet');
-const SHEETS=[libSheet,pieceSheet,menuSheet];
+      calBar=$('#calBar'),calSvg=$('#calSvg'),libSheet=$('#libSheet'),pieceSheet=$('#pieceSheet'),menuSheet=$('#menuSheet'),
+      placesSheet=$('#placesSheet'),roomsSheet=$('#roomsSheet'),designsSheet=$('#designsSheet'),settingsSheet=$('#settingsSheet');
+const SHEETS=[libSheet,pieceSheet,menuSheet,placesSheet,roomsSheet,designsSheet,settingsSheet];
 const TYPES=['Sofa','Chair','Coffee table','Side table','TV stand','Storage','Dining','Bed','Rug','Lighting','Pillows and throws','Decor','Plant','Other'];
 const uid=()=>Math.random().toString(36).slice(2,10);
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -467,7 +538,7 @@ const lib=new Map();      // furniture library: id -> piece
 const trash=new Map();    // deleted pieces, kept so they can be restored
 let sets=[];              // [{id,name,ids:[]}]
 let unit='in';
-let selId=null,history=[],W=0,H=0,multi=null,axisX=false;
+let selId=null,history=[],W=0,H=0,multi=null,axisX=false,panelHidden=false;
 let calMode=false,calDraft=null;
 const els=new Map();      // item id -> element
 const pix=new Map();      // piece id -> ImageData of the original picture
@@ -490,7 +561,7 @@ const hasSize=p=>p.w>0||p.h>0;
 /* ---------- Sample content ---------- */
 function sampleDesign(name){
   const rid=uid(),it=(a,x,y)=>({id:uid(),a,x,y,s:.1,r:0,f:false,sh:true,auto:true,lk:false});
-  return {id:uid(),name:name||'My first design',updated:Date.now(),cur:rid,rooms:[{
+  return {id:uid(),name:name||'My home',updated:Date.now(),cur:rid,rooms:[{
     id:rid,name:'Sample room',room:{src:'sample-room.jpg',w:1672,h:941,sample:true},
     cal:{a:{x1:.359,y1:.672,x2:.727,y2:.672,len:101},b:{x1:.391,y1:.85,x2:.652,y2:.85,len:40}},
     items:[it('lamp',.17,.485),it('plant',.755,.54)].filter(i=>lib.has(i.a))
@@ -675,6 +746,14 @@ function borderStats(d,w,h,tol){
   for(const i of idx){const o=i*4;const dr=d[o]-r,dg=d[o+1]-g,db=d[o+2]-b;if(dr*dr+dg*dg+db*db<=t2)n++;}
   return {r,g,b,share:n/idx.length,idx};
 }
+/* How strict to be: clean studio photos get a tight match, noisy screenshots a looser one. */
+function autoTol(d,w,h){
+  const st=borderStats(d,w,h,40);
+  let sum=0,n=0;
+  for(const i of st.idx){const o=i*4;if(d[o+3]<9)continue;const dr=d[o]-st.r,dg=d[o+1]-st.g,db=d[o+2]-st.b,q=dr*dr+dg*dg+db*db;if(q<=40*40*3){sum+=q;n++;}}
+  const rms=n?Math.sqrt(sum/n/3):0;
+  return Math.max(8,Math.min(36,Math.round(rms*2.5)+8));
+}
 function makeCut(src,tol){
   const w=src.width,hh=src.height,n=w*hh,d=new Uint8ClampedArray(src.data);
   const st=borderStats(d,w,hh,tol),t2=tol*tol*3;
@@ -686,6 +765,19 @@ function makeCut(src,tol){
   };
   for(const i of st.idx)push(i);
   while(sp){const i=stack[--sp],x=i%w;if(x>0)push(i-1);if(x<w-1)push(i+1);if(i>=w)push(i-w);if(i<n-w)push(i+w);}
+  // clean the thin light halo that hugs the cut edge (anti-aliased pixels that are mostly background)
+  const t2h=t2*5;
+  for(let pass=0;pass<2;pass++){
+    const add=[];
+    for(let i=0;i<n;i++){
+      if(seen[i])continue;
+      const x=i%w;
+      if(!((x>0&&seen[i-1])||(x<w-1&&seen[i+1])||(i>=w&&seen[i-w])||(i<n-w&&seen[i+w])))continue;
+      const o=i*4,dr=d[o]-st.r,dg=d[o+1]-st.g,db=d[o+2]-st.b;
+      if(dr*dr+dg*dg+db*db<=t2h)add.push(i);
+    }
+    for(const i of add)seen[i]=1;
+  }
   let x0=w,y0=hh,x1=-1,y1=-1,left=0;
   for(let i=0;i<n;i++){
     const o=i*4;
@@ -718,8 +810,13 @@ async function processPhoto(file){
   const c=await fileToCanvas(file,900);
   const data=c.getContext('2d').getImageData(0,0,c.width,c.height),d=data.data;
   let alpha=false;for(let i=3;i<d.length;i+=64){if(d[i]<250){alpha=true;break;}}
-  const out={orig:{src:c.toDataURL(alpha?'image/png':'image/jpeg',.88),w:c.width,h:c.height},cut:null,useCut:false,tol:26,data,alpha};
-  if(!alpha&&borderStats(d,c.width,c.height,26).share>=.6){const cut=makeCut(data,26);if(cut){out.cut=cut;out.useCut=true;}}
+  const tol0=autoTol(d,c.width,c.height);
+  const out={orig:{src:c.toDataURL(alpha?'image/png':'image/jpeg',.88),w:c.width,h:c.height},cut:null,useCut:false,tol:tol0,data,alpha};
+  if(!alpha&&borderStats(d,c.width,c.height,tol0).share>=.6){
+    for(const t of [tol0,Math.max(6,Math.round(tol0*.6)),6]){   // if the subject gets eaten, try again more strictly
+      const cut=makeCut(data,t);if(cut){out.cut=cut;out.useCut=true;out.tol=t;break;}
+    }
+  }
   return out;
 }
 
@@ -839,7 +936,7 @@ function render(){
 }
 function renderTray(){
   tray.textContent='';
-  tray.append(h('button',{type:'button',class:'btn primary addbtn',onclick:()=>openSheet(libSheet)},h('b',{text:'+'}),h('span',{text:'Furniture'})));
+  tray.append(h('button',{type:'button',class:'btn primary addbtn',onclick:()=>openSheet(libSheet,null)},h('b',{text:'+'}),h('span',{text:'Furniture'})));
   tray.append(h('button',{type:'button',class:'btn addbtn',onclick:()=>startMulti()},h('b',{text:'☑'}),h('span',{text:'Select'})));
   const used=[];
   for(const rm of D.rooms)for(const it of rm.items){const p=P(it.a);if(p&&!used.includes(p))used.push(p);}
@@ -852,7 +949,7 @@ function renderAll(){selId=null;renderTabs();renderTray();layout();}
 
 /* ---------- Room sizing ---------- */
 function enterCal(){
-  closeSheets();selId=null;calMode=true;
+  closeSheets();setPanel(false);selId=null;calMode=true;
   const c=R().cal;
   calDraft=c?JSON.parse(JSON.stringify(c)):{a:{x1:.3,y1:.66,x2:.7,y2:.66,len:0},b:null};
   $('#calLenA').value=calDraft.a.len>0?fmt(calDraft.a.len):'';
@@ -1047,11 +1144,18 @@ tolInput.addEventListener('input',()=>{
 });
 undoBtn.addEventListener('click',undo);
 
+/* ---------- Hide or show the tools panel ---------- */
+function setPanel(hide){
+  panelHidden=!!hide;document.body.classList.toggle('panelHidden',panelHidden);
+  $('#panelToggle').textContent=panelHidden?'Show tools':'Hide tools';
+}
+$('#panelToggle').addEventListener('click',()=>setPanel(!panelHidden));
+
 /* ---------- Multi-select: line up, space out, stack ---------- */
 function startMulti(){
   if(calMode)exitCal();
   if(R().items.length<2){toast('Place at least two pieces to line them up.');return;}
-  closeSheets();selId=null;axisX=false;multi=new Set();render();
+  closeSheets();setPanel(false);selId=null;axisX=false;multi=new Set();render();
   toast('Tap the pieces you want to line up.');
 }
 function dims(it,rm){
@@ -1142,23 +1246,29 @@ document.addEventListener('paste',e=>{
 
 /* ---------- Pages (full screen, swipe right to go back) ---------- */
 let libView='cards',roomSettings=false;
-function openSheet(s){
+function openSheet(s,from){
   if(calMode)exitCal();
   closeSheets();s.hidden=false;
+  if(from!==undefined)s._from=from;
   const body=s.querySelector('.sheet');if(body)body.scrollTop=0;
-  if(s===menuSheet){roomSettings=false;renderMenu();}
-  if(s===libSheet){libView='cards';renderLib();}
+  if(s===menuSheet)renderMenu();
+  else if(s===libSheet){libView='cards';renderLib();}
+  else if(s===placesSheet)renderPlaces();
+  else if(s===roomsSheet){roomSettings=false;renderRooms();}
+  else if(s===designsSheet)renderDesigns();
+  else if(s===settingsSheet)renderSettings();
 }
 function closeSheets(){for(const s of SHEETS)s.hidden=true;$('#setNameRow').hidden=true;}
 function goBack(){
   if(!pieceSheet.hidden){draft=null;openSheet(libSheet);return true;}
-  if(!libSheet.hidden){if(libView==='trash'){libView='cards';renderLib();}else closeSheets();return true;}
-  if(!menuSheet.hidden){closeSheets();return true;}
-  return false;
+  if(!libSheet.hidden&&libView==='trash'){libView='cards';renderLib();return true;}
+  const cur=SHEETS.find(x=>!x.hidden);if(!cur)return false;
+  const f=cur._from;closeSheets();if(f)openSheet(f);
+  return true;
 }
 for(const b of document.querySelectorAll('[data-back]'))b.addEventListener('click',goBack);
-$('#menuBtn').addEventListener('click',()=>openSheet(menuSheet));
-$('#myFurn').addEventListener('click',()=>openSheet(libSheet));
+$('#menuBtn').addEventListener('click',()=>openSheet(menuSheet,null));
+$('#gearBtn').addEventListener('click',()=>openSheet(settingsSheet,menuSheet));
 /* swipe right (or down from the top) on any page goes back */
 for(const sh of document.querySelectorAll('.sheet')){
   let t=null;
@@ -1441,7 +1551,7 @@ function plainScore(blob){
         if(Math.min(im.naturalWidth,im.naturalHeight)<120){res(-1);return;}
         const k=160/Math.max(im.naturalWidth,im.naturalHeight),w=Math.max(1,Math.round(im.naturalWidth*k)),hh=Math.max(1,Math.round(im.naturalHeight*k));
         const c=document.createElement('canvas');c.width=w;c.height=hh;const x=c.getContext('2d');x.drawImage(im,0,0,w,hh);
-        res(borderStats(x.getImageData(0,0,w,hh).data,w,hh,26).share);
+        {const dd=x.getImageData(0,0,w,hh).data;res(borderStats(dd,w,hh,autoTol(dd,w,hh)).share);}
       }catch(_){res(-1);}
       URL.revokeObjectURL(u);
     };
@@ -1569,55 +1679,117 @@ $('#pieceForm').addEventListener('submit',e=>{e.preventDefault();savePieceForm(t
 $('#pSave').addEventListener('click',()=>savePieceForm(false));
 $('#pDelete').addEventListener('click',()=>{if(draft&&draft.id)deletePiece(draft.id);});
 
-/* ---------- Menu: rooms and designs ---------- */
+/* ---------- Menu, places, rooms, designs, settings ---------- */
+let menuOpen='';
+function menuSection(key,title,count,quick,seeAll,seeLabel){
+  const open=menuOpen===key;
+  const head=h('button',{type:'button',class:'mhead','aria-expanded':String(open)},
+    h('span',{text:title}),h('span',{class:'n',text:String(count)}),
+    h('svg',{class:'chev',viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'2.4','stroke-linecap':'round','stroke-linejoin':'round'},h('path',{d:'M9 5l7 7-7 7'})));
+  head.addEventListener('click',()=>{menuOpen=open?'':key;renderMenu();});
+  const body=h('div',{class:'mbody',hidden:open?null:''},...quick,
+    h('button',{type:'button',class:'btn small',text:seeLabel||'See all ›',onclick:seeAll}));
+  return h('div',{class:'msec'},head,body);
+}
 function renderMenu(){
+  const box=$('#menuList');box.textContent='';
+  const rm=R(),placeList=index.some(x=>x.id===D.id)?index:[{id:D.id,name:D.name}].concat(index);
+  const pq=placeList.slice(0,5).map(p=>h('button',{type:'button',class:'btn small'+(p.id===D.id?' on':''),text:(p.id===D.id?D.name:p.name),
+    onclick:async()=>{if(p.id!==D.id)await openDesign(p.id);closeSheets();}}));
+  box.append(menuSection('places','My places',placeList.length,pq,()=>openSheet(placesSheet,menuSheet)));
+  const rq=D.rooms.slice(0,6).map(r=>h('button',{type:'button',class:'btn small'+(r.id===D.cur?' on':''),text:r.name||'Room',onclick:()=>{goRoom(r.id);closeSheets();}}));
+  box.append(menuSection('rooms','My rooms',D.rooms.length,rq,()=>openSheet(roomsSheet,menuSheet),'See all and settings ›'));
+  box.append(menuSection('furniture','My furniture',lib.size,[h('button',{type:'button',class:'btn small',text:'+ Add a piece',onclick:()=>{openSheet(libSheet,menuSheet);openPiece(null);}})],()=>openSheet(libSheet,menuSheet)));
+  const ds=(rm.designs||[]);
+  const dq=ds.slice(0,5).map(d=>h('button',{type:'button',class:'btn small',text:d.name,onclick:()=>applyDesign(d.id)}));
+  box.append(menuSection('designs','My designs',ds.length,dq,()=>openSheet(designsSheet,menuSheet)));
+}
+/* My places: each place is its own set of rooms */
+function renderPlaces(){
+  $('#placeName').value=D.name;
+  const box=$('#placesList');box.textContent='';
+  const list=index.some(x=>x.id===D.id)?index:[{id:D.id,name:D.name,updated:D.updated,rooms:D.rooms.length}].concat(index);
+  for(const d of list){
+    const cur=d.id===D.id;
+    const when=new Date(d.updated).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    const o=h('button',{type:'button',class:'btn open'+(cur?' on':''),onclick:async()=>{if(!cur)await openDesign(d.id);closeSheets();}},
+      h('b',{text:cur?D.name:d.name}),h('span',{text:(cur?'Open now':when)+' · '+d.rooms+(d.rooms===1?' room':' rooms')}));
+    const x=h('button',{type:'button',class:'btn danger',text:'Delete'});
+    x.addEventListener('click',async()=>{if(await askConfirm('Delete "'+(cur?D.name:d.name)+'"?','The place and all its rooms are removed. Your furniture list stays.','Delete'))deleteDesign(d.id);});
+    box.append(h('div',{class:'saved'},o,x));
+  }
+}
+$('#placeName').addEventListener('input',e=>{D.name=e.target.value.trim()||'My place';renderTabs();save();});
+$('#newPlace').addEventListener('click',async()=>{
+  await flush();D=sampleDesign('New place');clearHistory();closeSheets();renderAll();
+  toast('New place started. Add your room photo.');
+});
+/* My rooms: the rooms of the open place */
+function renderRooms(){
   const rm=R();
-  const list0=$('#roomList');list0.textContent='';
+  $('#roomsFor').textContent='Rooms in '+D.name;
+  const box=$('#roomList');box.textContent='';
   for(const r of D.rooms){
     const cur=r.id===D.cur;
     const open=h('button',{type:'button',class:'btn open'+(cur?' on':''),onclick:()=>{goRoom(r.id);closeSheets();}},
       h('b',{text:r.name||'Room'}),h('span',{text:(cur?'Showing now · ':'')+r.items.length+(r.items.length===1?' piece':' pieces')}));
     const st=h('button',{type:'button',class:'btn small'+(cur&&roomSettings?' on':''),text:'Settings',
-      onclick:()=>{if(!(cur&&roomSettings)){roomSettings=true;if(!cur)goRoom(r.id);}else roomSettings=false;renderMenu();}});
-    list0.append(h('div',{class:'roomrow'},open,st));
+      onclick:()=>{if(!(cur&&roomSettings)){roomSettings=true;if(!cur)goRoom(r.id);}else roomSettings=false;renderRooms();}});
+    box.append(h('div',{class:'roomrow'},open,st));
   }
   $('#roomPanel').hidden=!roomSettings;
   $('#roomPanelTitle').textContent='Settings for '+rm.name;
-  $('#roomName').value=rm.name;$('#designInput').value=D.name;
-  $('#myFurn').textContent='My furniture ('+lib.size+')';
+  $('#roomName').value=rm.name;
   $('#deleteRoom').hidden=D.rooms.length<2;
   $('#resetRoom').disabled=!rm.items.length;
   $('#sizeRoom').textContent=sized(rm)?'Change room size':'Set room size';
-  $('#helperBox').hidden=hosted;$('#helperUrl').value=helperUrl;
-  const box=$('#savedList');box.textContent='';
-  const list=index.some(x=>x.id===D.id)?index:[{id:D.id,name:D.name,updated:D.updated,rooms:D.rooms.length}].concat(index);
-  for(const d of list){
-    const cur=d.id===D.id;
-    const when=new Date(d.updated).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-    const o=h('button',{type:'button',class:'btn open'+(cur?' on':''),onclick:()=>{if(!cur)openDesign(d.id);else closeSheets();}},
-      h('b',{text:cur?D.name:d.name}),h('span',{text:(cur?'Open now':when)+' · '+d.rooms+(d.rooms===1?' room':' rooms')}));
-    const x=h('button',{type:'button',class:'btn danger',text:'Delete'});
-    x.addEventListener('click',()=>confirmTap(x,()=>deleteDesign(d.id)));
-    box.append(h('div',{class:'saved'},o,x));
-  }
 }
 $('#roomName').addEventListener('input',e=>{R().name=e.target.value.trim()||'Room';renderTabs();save();const cb=document.querySelector('#roomList .open.on b');if(cb)cb.textContent=R().name;});
-$('#designInput').addEventListener('input',e=>{D.name=e.target.value.trim()||'Untitled design';renderTabs();save();});
-for(const b of document.querySelectorAll('[data-unit]'))b.addEventListener('click',()=>setUnit(b.dataset.unit));
 $('#resetRoom').addEventListener('click',()=>{
   const rm=R();if(!rm.items.length)return;
   remember();rm.items=[];selId=null;closeSheets();renderTray();render();save();
   toast('Room cleared. Undo brings it back.');
 });
-$('#deleteRoom').addEventListener('click',e=>confirmTap(e.currentTarget,()=>{
+$('#deleteRoom').addEventListener('click',async()=>{
   if(D.rooms.length<2)return;
+  if(!await askConfirm('Delete "'+R().name+'"?','The room and its layouts are removed.','Delete'))return;
   const i=D.rooms.indexOf(R());D.rooms.splice(i,1);D.cur=D.rooms[Math.max(0,i-1)].id;
   closeSheets();renderAll();save();
-}));
-$('#newDesign').addEventListener('click',async()=>{
-  await flush();D=sampleDesign('New design');clearHistory();closeSheets();renderAll();
-  toast('New design started. Add your room photo.');
 });
+/* My designs: saved furniture layouts for the room you are in */
+function renderDesigns(){
+  const rm=R();
+  $('#designsFor').textContent='Saved layouts for '+rm.name+' in '+D.name;
+  $('#designName').value='';
+  const box=$('#designList');box.textContent='';
+  const ds=rm.designs||[];
+  for(const d of ds){
+    const when=new Date(d.updated).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    const o=h('button',{type:'button',class:'btn open',onclick:()=>applyDesign(d.id)},
+      h('b',{text:d.name}),h('span',{text:when+' · '+d.items.length+(d.items.length===1?' piece':' pieces')+' · tap to use'}));
+    const x=h('button',{type:'button',class:'btn danger',text:'Delete'});
+    x.addEventListener('click',async()=>{if(await askConfirm('Delete "'+d.name+'"?','This saved layout is removed.','Delete')){rm.designs=ds.filter(y=>y.id!==d.id);save();renderDesigns();}});
+    box.append(h('div',{class:'saved'},o,x));
+  }
+  if(!ds.length)box.append(h('p',{text:'Nothing saved yet. Arrange the room the way you like, then name it here.'}));
+}
+$('#designSave').addEventListener('click',()=>{
+  const rm=R(),name=$('#designName').value.trim();
+  if(!name){toast('Give the layout a name.');return;}
+  if(!rm.items.length){toast('Place some furniture in the room first.');return;}
+  (rm.designs=rm.designs||[]).unshift({id:uid(),name,updated:Date.now(),items:JSON.parse(JSON.stringify(rm.items))});
+  save();renderDesigns();toast('Layout saved.');
+});
+function applyDesign(id){
+  const rm=R(),d=(rm.designs||[]).find(x=>x.id===id);if(!d)return;
+  remember();
+  rm.items=JSON.parse(JSON.stringify(d.items)).filter(i=>lib.has(i.a));
+  selId=null;closeSheets();renderTray();render();save();
+  toast('Layout "'+d.name+'" is back in the room. Undo brings back what was there.');
+}
+/* Settings (gear): measurements, link helper, backup */
+function renderSettings(){$('#helperBox').hidden=hosted;$('#helperUrl').value=helperUrl;}
+for(const b of document.querySelectorAll('[data-unit]'))b.addEventListener('click',()=>setUnit(b.dataset.unit));
 function validDesign(d){
   return d&&typeof d==='object'&&Array.isArray(d.rooms)&&d.rooms.length&&
     d.rooms.every(r=>r&&r.room&&typeof r.room.src==='string'&&r.room.w>0&&r.room.h>0&&Array.isArray(r.items));
@@ -1657,10 +1829,10 @@ async function deleteDesign(id){
   index=index.filter(x=>x.id!==id);
   try{await idbDel('d:'+id);await idbSet('index',index);}catch(_){}
   if(id===D.id){
-    if(index.length){await openDesign(index[0].id);openSheet(menuSheet);return;}
+    if(index.length){await openDesign(index[0].id);openSheet(placesSheet,menuSheet);return;}
     D=sampleDesign();clearHistory();renderAll();
   }
-  renderMenu();
+  renderPlaces();
 }
 async function openBackup(file){
   try{
