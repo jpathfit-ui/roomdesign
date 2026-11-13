@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
+  --tile:#171d1b;
   /* Layout: a one-screen studio. Slim bar and room tabs on top, the room photo fills a dark well in the middle,
      and furniture pieces sit in a tray underneath like samples laid out on a board. The furniture library
      opens as a drawer on a phone and as a side panel on a wide screen. */
@@ -60,13 +61,14 @@ input,select,textarea{font-size:16px}
 .btn.small{min-height:40px;padding:0 12px}
 .hide-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 
-header{display:flex;align-items:center;gap:8px;padding:8px 18px 0}
 h1{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.02em;margin:0;flex:1;min-width:0;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 h1 small{display:block;font-family:var(--body);font-weight:400;font-size:13px;letter-spacing:0;color:var(--muted);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
-#bar2{display:flex;align-items:center;gap:8px;padding:8px 18px;border-bottom:1px solid var(--line)}
-#tabs{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none;padding:2px}
-#tabs::-webkit-scrollbar{display:none}
+#top{display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid var(--line)}
+#top h1{text-align:center;font-size:17px}
+.iconbtn{flex:none;width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);display:grid;place-items:center;cursor:pointer;padding:0;touch-action:manipulation}
+.iconbtn svg{width:22px;height:22px}
+.iconbtn[disabled]{opacity:.35}
 
 #well{flex:1;min-height:0;background:var(--well);display:grid;place-items:center;overflow:hidden;touch-action:none;position:relative;z-index:0;padding:8px 18px}
 #stage{position:relative;overflow:hidden;background:#000}
@@ -91,7 +93,7 @@ h1 small{display:block;font-family:var(--body);font-weight:400;font-size:13px;le
   position:absolute;top:10px;z-index:10000;padding:5px 10px;border-radius:99px;border:0;
   background:rgba(20,26,24,.78);color:#F3F7F2;font-size:13px;font-weight:600;
 }
-#chip{left:10px;pointer-events:none}
+#chip{left:10px;cursor:pointer}
 #sizeChip{right:10px;min-height:34px;cursor:pointer;font-family:inherit;background:var(--brass);color:#1c1c1c}
 #calSvg{position:absolute;inset:0;width:100%;height:100%;z-index:10001;pointer-events:none}
 #calSvg line{stroke-width:3;stroke-linecap:round}
@@ -110,10 +112,7 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .row::-webkit-scrollbar{display:none}
 .thumb{
   flex:none;width:64px;height:64px;padding:6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;
-  background:
-    linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 0 0/12px 12px,
-    linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 6px 6px/12px 12px,
-    #eef0ec;}
+  background:var(--tile)}
 .thumb img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
 .item.multi{outline:3px dashed var(--brass);outline-offset:3px}
 #multiBar .count{flex:none;font-weight:600;font-size:13px;color:var(--muted);padding:0 6px}
@@ -138,18 +137,42 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 #toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 
-.sheetWrap{position:fixed;inset:0;z-index:40;background:rgba(10,14,13,.55);display:flex;align-items:flex-end;justify-content:center}
+@keyframes pagein{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.sheetWrap{position:fixed;inset:0;z-index:40;background:var(--plaster);display:flex;justify-content:center}
+.sheetWrap:not([hidden]) .sheet{animation:pagein .18s ease-out}
+@media (prefers-reduced-motion:reduce){.sheetWrap:not([hidden]) .sheet{animation:none}}
 .sheet{
-  width:100%;max-width:560px;max-height:90%;overflow-y:auto;background:var(--plaster);border-radius:18px 18px 0 0;
-  padding:18px 16px 22px;display:flex;flex-direction:column;gap:12px;-webkit-user-select:text;user-select:text;
+  width:100%;max-width:720px;height:100%;overflow-y:auto;overflow-x:hidden;background:var(--plaster);
+  display:flex;flex-direction:column;-webkit-user-select:text;user-select:text;overscroll-behavior:contain;
 }
-.sheet h2{font-family:var(--display);font-size:22px;letter-spacing:-.02em;margin:0;flex:1}
+.pagebar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;background:var(--plaster);border-bottom:1px solid var(--line)}
+.pagebar h2{flex:1;min-width:0;text-align:center;margin:0;font-family:var(--display);font-size:19px;letter-spacing:-.02em}
+.pagebar .back{flex:none;min-width:44px;padding:0 12px}
+.pagebar .spacer{flex:none;min-width:44px}
+.pbody{display:flex;flex-direction:column;gap:12px;padding:14px 16px calc(28px + env(safe-area-inset-bottom))}
+.sec{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:12px;display:flex;flex-direction:column;gap:10px}
+.sec>h3{margin:0}
+.filters{display:flex;gap:8px}
+.filters select{flex:1;min-width:0}
+.subrow{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.mrow{display:flex;gap:6px;align-items:center}
+.mrow .field{min-height:42px}
+.mrow .val{flex:0 0 84px}
+.mrow .x{flex:none;width:42px;min-height:42px;padding:0}
+.roomrow{display:flex;gap:8px;align-items:center}
+.roomrow .open{flex:1;min-width:0;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:0;padding:6px 14px;white-space:normal;text-align:left}
+.roomrow .open span{font-weight:400;font-size:13px;color:var(--muted)}
+.roomrow .open.on span{color:inherit;opacity:.75}
+#dlg{position:fixed;inset:0;z-index:90;background:rgba(10,14,13,.6);display:grid;place-items:center;padding:24px}
+#dlg .box{width:100%;max-width:340px;background:var(--plaster);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px}
+#dlg h3{margin:0;font-size:18px;font-family:var(--display);text-transform:none;letter-spacing:-.01em;color:var(--ink)}
+#dlg p{margin:0;color:var(--muted);font-size:14px}
+#dlg .wrap .btn{flex:1}
 .sheet h3{font-size:13px;font-weight:600;color:var(--muted);margin:8px 0 -4px;text-transform:uppercase;letter-spacing:.06em}
 .sheet p{margin:0;color:var(--muted);font-size:14px;max-width:60ch}
 .head{display:flex;align-items:center;gap:8px}
 .field{width:100%;min-height:46px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);padding:0 12px;min-width:0}
 .field::placeholder{color:var(--muted)}
-#pasteBox{border:1.5px dashed var(--line);text-align:center}
 .wrap{display:flex;flex-wrap:wrap;gap:8px}
 .pair{display:flex;gap:8px}
 .pair .field{flex:1}
@@ -165,7 +188,7 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .storechip button{border-radius:0 10px 10px 0;border-left:0;padding:0 12px}
 #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .card{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.card .ph{aspect-ratio:4/3;border-radius:8px;background:linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 0 0/16px 16px,linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 8px 8px/16px 16px,#eef0ec;display:grid;place-items:center;overflow:hidden}
+.card .ph{aspect-ratio:4/3;border-radius:8px;background:var(--tile);display:grid;place-items:center;overflow:hidden}
 .card .ph{position:relative}
 .card .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
 .card b{font-size:14px;line-height:1.2;overflow-wrap:anywhere}
@@ -176,32 +199,35 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 .tag.warn{border-color:var(--brass);color:var(--ink)}
 /* measurement fields change with the furniture type */
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-#photoBox{position:relative;height:230px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:14px;touch-action:none;
-  background:
-    linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 0 0/14px 14px,
-    linear-gradient(45deg,#d8dcd6 25%,transparent 25% 75%,#d8dcd6 75%) 7px 7px/14px 14px,
-    #eef0ec}
-#photoBox img{max-width:100%;max-height:228px;display:block;pointer-events:none;-webkit-user-drag:none}
+#photoBox{position:relative;height:190px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;overflow:hidden;color:var(--muted);font-size:14px;touch-action:none;
+  background:var(--tile)}
+#photoBox img{max-width:100%;max-height:188px;display:block;pointer-events:none;-webkit-user-drag:none}
 .erbox{position:absolute;border:2px dashed var(--danger);background:rgba(190,70,50,.3);pointer-events:none}
 .check{display:flex;align-items:center;gap:10px;font-weight:600;min-height:44px}
 .check input{width:22px;height:22px;accent-color:var(--spruce)}
-@media (min-width:900px){
-  #libSheet{background:none;justify-content:flex-end;align-items:stretch;pointer-events:none}
-  #libSheet .sheet{pointer-events:auto;max-width:420px;max-height:none;height:100%;border-radius:0;border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.18)}
+@media (orientation:landscape) and (max-height:560px){
+  body{display:grid;grid-template-columns:minmax(0,1fr) 250px;grid-template-rows:auto minmax(0,1fr)}
+  #top{grid-column:1/3;padding:calc(4px + env(safe-area-inset-top)) 12px 4px}
+  #well{grid-column:1;grid-row:2;padding:6px 10px}
+  footer{grid-column:2;grid-row:2;overflow-y:auto;border-top:0;border-left:1px solid var(--line);padding-bottom:12px}
+  footer .row{flex-wrap:wrap;overflow:visible;padding:8px 10px}
+  .btn{min-height:40px}
+  #toast{bottom:16px}
 }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>Room Designer<small id="designName"></small></h1>
-  <button class="btn" id="menuBtn" type="button">Menu</button>
+<header id="top">
+  <button class="iconbtn" id="menuBtn" type="button" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <h1><span id="designTitle">Room Designer</span><small id="designName"></small></h1>
+  <button class="iconbtn" id="undo" type="button" aria-label="Undo" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+  </button>
   <button class="btn primary" id="saveBtn" type="button">Save picture</button>
 </header>
-<div id="bar2">
-  <nav id="tabs" aria-label="Rooms"></nav>
-  <button class="btn small" id="undo" type="button" disabled>Undo</button>
-</div>
 
 <input class="hide-input" type="file" id="roomFile" accept="image/*">
 <input class="hide-input" type="file" id="furnFile" accept="image/*">
@@ -210,7 +236,7 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 <main id="well" aria-label="Room">
   <div id="stage">
     <img id="room" alt="Room photo">
-    <div class="chip" id="chip" hidden>Sample room</div>
+    <label class="chip" id="chip" for="roomFile" data-mode="new" data-stagebtn hidden>Sample room · Add your photo</label>
     <button class="chip" id="sizeChip" type="button" data-stagebtn hidden>Set room size</button>
     <div id="selbox">
       <button id="rot" type="button" aria-label="Turn">
@@ -273,101 +299,141 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 
 <div class="sheetWrap" id="libSheet" hidden>
   <div class="sheet" role="dialog" aria-labelledby="libTitle">
-    <div class="head"><h2 id="libTitle">Furniture</h2><button class="btn small" type="button" data-close>Close</button></div>
-    <button class="btn primary" id="addPiece" type="button">Add a piece</button>
-    <input class="field" id="libSearch" type="search" placeholder="Search by name or store" autocomplete="off" aria-label="Search furniture">
-    <div class="chips" id="typeChips"></div>
-    <div class="pair">
-      <select class="field" id="setSel" aria-label="Furniture set"></select>
-      <button class="btn" id="setPlace" type="button" hidden>Place all</button>
-      <button class="btn danger" id="setDel" type="button" hidden>Delete set</button>
+    <div class="pagebar">
+      <button class="btn back" type="button" data-back aria-label="Back">‹ Back</button>
+      <h2 id="libTitle">My furniture</h2>
+      <button class="btn primary small" id="addPiece" type="button">+ Add</button>
     </div>
-    <div id="grid"></div>
-    <button class="btn" id="setSave" type="button">Save this room's pieces as a set</button>
-    <div class="pair" id="setNameRow" hidden>
-      <input class="field" id="setName" type="text" maxlength="40" placeholder="Set name, like Cozy option" autocomplete="off" aria-label="Set name">
-      <button class="btn primary" id="setNameSave" type="button">Save</button>
+    <div class="pbody">
+      <div id="libTools">
+        <div class="filters">
+          <select class="field" id="fStore" aria-label="Filter by store"></select>
+          <select class="field" id="fType" aria-label="Filter by type"></select>
+        </div>
+        <div class="pair" id="setRow" style="margin-top:8px" hidden>
+          <select class="field" id="setSel" aria-label="Furniture set"></select>
+          <button class="btn" id="setPlace" type="button" hidden>Place all</button>
+          <button class="btn danger" id="setDel" type="button" hidden>Delete set</button>
+        </div>
+        <div class="subrow" style="margin-top:8px">
+          <button class="btn small" id="fClear" type="button" hidden>Clear filters</button>
+          <button class="btn small" id="trashBtn" type="button" style="margin-left:auto" hidden>Recently deleted</button>
+        </div>
+      </div>
+      <div id="grid"></div>
     </div>
-    <h3>Browse stores</h3>
-    <div class="wrap" id="stores"></div>
-    <div class="pair">
-      <input class="field" id="storeUrl" type="url" inputmode="url" placeholder="Add a favourite store, like ikea.com" autocomplete="off" aria-label="Favourite store website">
-      <button class="btn" id="storeAdd" type="button">Add</button>
-    </div>
-    <p>Stores open outside the app. Copy the product photo and its link there, then come back and tap Add a piece.</p>
   </div>
 </div>
 
 <div class="sheetWrap" id="pieceSheet" hidden>
   <form class="sheet" id="pieceForm" role="dialog" aria-modal="true" aria-labelledby="pieceTitle">
-    <h2 id="pieceTitle">Add a piece</h2>
-    <div id="photoBox">No photo yet</div>
-    <div id="candBox" hidden><p>Other photos from that page. Tap one to use it.</p><div class="row" id="candRow"></div></div>
-    <p id="eraseHint" hidden>Drag a box over anything that should not be there, like a badge or label, to erase it.</p>
-    <div class="wrap">
-      <label class="btn primary" for="furnFile" tabindex="0">Take or choose photo</label>
-      <button class="btn" type="button" id="undoErase" hidden>Undo erase</button>
+    <div class="pagebar">
+      <button class="btn back" type="button" data-back aria-label="Back">‹ Back</button>
+      <h2 id="pieceTitle">Add a piece</h2>
+      <button class="btn primary small" type="button" id="pSave">Save</button>
     </div>
-    <input class="field" id="pasteBox" type="text" placeholder="Copied a picture? Press and hold here, then Paste" autocomplete="off" aria-label="Paste a copied picture here">
-    <label class="check" id="cutLbl"><input type="checkbox" id="pCut"> Remove plain background</label>
-    <label class="lbl">Name<input class="field" id="pName" type="text" maxlength="60" autocomplete="off" placeholder="Like Green velvet sofa"></label>
-    <div class="pair">
-      <label class="lbl">Type<select class="field" id="pType"></select></label>
-      <label class="lbl">Where you found it<input class="field" id="pStore" type="text" maxlength="40" autocomplete="off" placeholder="Store or place"></label>
-    </div>
-    <div class="pair" style="align-items:flex-end">
-      <label class="lbl">Link<input class="field" id="pLink" type="url" inputmode="url" autocomplete="off" placeholder="Paste the product page link"></label>
-      <button class="btn" type="button" id="pFetch">Fetch details</button>
-    </div>
-    <p id="fetchNote" hidden>To fill in details from a link, add the link helper address in Menu.</p>
-    <div class="fields" id="pFields"></div>
-    <p>One size is enough: tall pieces are sized by height, wide pieces by width. The fields change with the type.</p>
-    <label class="lbl">Other measurements or notes<input class="field" id="pNotes" type="text" maxlength="200" autocomplete="off" placeholder="Like Base 11 in, shade 6 in"></label>
-    <div id="pSetsRow" hidden>
-      <h3 style="margin:0 0 6px">Sets</h3>
-      <div class="wrap" id="pSets"></div>
-    </div>
-    <div class="wrap">
-      <button class="btn primary" type="submit" id="pSavePlace">Save and place</button>
-      <button class="btn" type="button" id="pSave">Save</button>
-      <button class="btn danger" type="button" id="pDelete" hidden>Delete piece</button>
-      <button class="btn" type="button" id="pCancel">Cancel</button>
+    <div class="pbody">
+      <section class="sec" id="secBrowse">
+        <h3>Browse</h3>
+        <a class="btn" id="browseIkea" href="https://www.ikea.com/ca/en/" target="_blank" rel="noopener">Open IKEA ↗</a>
+      </section>
+
+      <section class="sec" id="secFetch">
+        <h3>Fetch</h3>
+        <div class="pair">
+          <input class="field" id="pLink" type="url" inputmode="url" autocomplete="off" placeholder="Product link" aria-label="Product link">
+          <button class="btn primary" type="button" id="pFetch" style="flex:none">Paste &amp; fetch</button>
+        </div>
+        <p id="fetchNote" hidden>To fetch from a link, add the link helper address in the menu.</p>
+        <div id="photoBox">No photo yet</div>
+        <div id="candBox" hidden><div class="row" id="candRow"></div></div>
+        <p id="eraseHint" hidden>Drag a box over a badge or label to erase it.</p>
+        <div class="wrap">
+          <label class="btn small" for="furnFile" tabindex="0">Take or choose photo</label>
+          <button class="btn small" type="button" id="undoErase" hidden>Undo erase</button>
+        </div>
+        <label class="check" id="cutLbl"><input type="checkbox" id="pCut"> Remove plain background</label>
+        <label class="lbl">Name<input class="field" id="pName" type="text" maxlength="60" autocomplete="off" placeholder="Like Green velvet sofa"></label>
+        <label class="lbl">Type<select class="field" id="pType"></select></label>
+      </section>
+
+      <section class="sec" id="secDims">
+        <h3>Dimensions</h3>
+        <div class="fields" id="pFields"></div>
+        <div id="pMore"></div>
+        <div class="subrow"><button class="btn small" type="button" id="addMore">+ Add measurement</button></div>
+        <p id="oldNotes" hidden></p>
+        <div id="pSetsRow" hidden>
+          <h3 style="margin:0 0 6px">Sets</h3>
+          <div class="wrap" id="pSets"></div>
+        </div>
+      </section>
+
+      <div class="wrap">
+        <button class="btn primary" type="submit" id="pSavePlace" style="flex:1">Save and place</button>
+        <button class="btn danger" type="button" id="pDelete" hidden>Delete</button>
+      </div>
     </div>
   </form>
 </div>
 
 <div class="sheetWrap" id="menuSheet" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
-    <h2 id="menuTitle">Menu</h2>
-    <h3>This room</h3>
-    <input class="field" id="roomName" type="text" maxlength="40" autocomplete="off" aria-label="Room name">
-    <div class="wrap">
-      <label class="btn" for="roomFile" data-mode="replace" tabindex="0">Change photo</label>
-      <button class="btn" id="sizeRoom" type="button">Set room size</button>
-      <button class="btn" id="resetRoom" type="button">Reset room</button>
-      <button class="btn danger" id="deleteRoom" type="button">Delete room</button>
+    <div class="pagebar">
+      <button class="btn back" type="button" data-back aria-label="Back">‹ Back</button>
+      <h2 id="menuTitle">Menu</h2>
+      <span class="spacer"></span>
     </div>
-    <h3>This design</h3>
-    <input class="field" id="designInput" type="text" maxlength="60" autocomplete="off" aria-label="Design name">
-    <div class="wrap">
-      <button class="btn" id="newDesign" type="button">New design</button>
-      <button class="btn" id="backup" type="button">Back up to a file</button>
-      <label class="btn" for="backupFile" tabindex="0">Open a backup</label>
+    <div class="pbody">
+      <h3>Rooms</h3>
+      <div id="roomList" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="sec" id="roomPanel" hidden>
+        <h3 id="roomPanelTitle">Room settings</h3>
+        <input class="field" id="roomName" type="text" maxlength="40" autocomplete="off" aria-label="Room name">
+        <div class="wrap">
+          <label class="btn small" for="roomFile" data-mode="replace" tabindex="0">Change photo</label>
+          <button class="btn small" id="sizeRoom" type="button">Set room size</button>
+          <button class="btn small" id="resetRoom" type="button">Reset room</button>
+          <button class="btn small" id="setSave" type="button">Save pieces as a set</button>
+          <button class="btn small danger" id="deleteRoom" type="button">Delete room</button>
+        </div>
+        <div class="pair" id="setNameRow" hidden>
+          <input class="field" id="setName" type="text" maxlength="40" placeholder="Set name, like Cozy option" autocomplete="off" aria-label="Set name">
+          <button class="btn primary" id="setNameSave" type="button">Save</button>
+        </div>
+      </div>
+      <label class="btn" for="roomFile" data-mode="new" tabindex="0">+ Add room</label>
+
+      <h3>Furniture</h3>
+      <button class="btn" id="myFurn" type="button">My furniture</button>
+
+      <h3>This design</h3>
+      <input class="field" id="designInput" type="text" maxlength="60" autocomplete="off" aria-label="Design name">
+      <div class="wrap">
+        <button class="btn small" id="newDesign" type="button">New design</button>
+        <button class="btn small" id="backup" type="button">Back up to a file</button>
+        <label class="btn small" for="backupFile" tabindex="0">Open a backup</label>
+      </div>
+      <h3>Measurements</h3>
+      <div class="wrap">
+        <button class="btn small" type="button" data-unit="in">Inches</button>
+        <button class="btn small" type="button" data-unit="cm">Centimetres</button>
+      </div>
+      <div id="helperBox">
+        <h3>Link helper</h3>
+        <input class="field" id="helperUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://roomdesign-helper.yourname.workers.dev" aria-label="Link helper address">
+      </div>
+      <h3>Saved designs</h3>
+      <div id="savedList" style="display:flex;flex-direction:column;gap:8px"></div>
+      <p>Designs and furniture save as you go, on this device only. Back up the designs you care about.</p>
     </div>
-    <h3>Measurements</h3>
-    <div class="wrap">
-      <button class="btn" type="button" data-unit="in">Inches</button>
-      <button class="btn" type="button" data-unit="cm">Centimetres</button>
-    </div>
-    <div id="helperBox">
-      <h3>Link helper</h3>
-      <input class="field" id="helperUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://roomdesign-helper.yourname.workers.dev" aria-label="Link helper address">
-      <p>Paste your helper's address to fill in a piece from a product link.</p>
-    </div>
-    <h3>Saved designs</h3>
-    <div id="savedList" style="display:flex;flex-direction:column;gap:8px"></div>
-    <p>Designs and furniture save as you go, on this device only. Back up the designs you care about.</p>
-    <button class="btn" type="button" data-close>Close</button>
+  </div>
+</div>
+
+<div id="dlg" hidden>
+  <div class="box" role="alertdialog" aria-modal="true" aria-labelledby="dlgT">
+    <h3 id="dlgT"></h3><p id="dlgP"></p>
+    <div class="wrap"><button class="btn" id="dlgNo" type="button">Cancel</button><button class="btn danger" id="dlgYes" type="button">Delete</button></div>
   </div>
 </div>
 
@@ -378,7 +444,7 @@ footer{border-top:1px solid var(--line);background:var(--plaster);padding-bottom
 "use strict";
 const $=s=>document.querySelector(s);
 const well=$('#well'),stage=$('#stage'),roomImg=$('#room'),selbox=$('#selbox'),tray=$('#tray'),actions=$('#actions'),
-      cutRow=$('#cutRow'),tolInput=$('#tol'),undoBtn=$('#undo'),chip=$('#chip'),sizeChip=$('#sizeChip'),tabs=$('#tabs'),
+      cutRow=$('#cutRow'),tolInput=$('#tol'),undoBtn=$('#undo'),chip=$('#chip'),sizeChip=$('#sizeChip'),
       calBar=$('#calBar'),calSvg=$('#calSvg'),libSheet=$('#libSheet'),pieceSheet=$('#pieceSheet'),menuSheet=$('#menuSheet');
 const SHEETS=[libSheet,pieceSheet,menuSheet];
 const TYPES=['Sofa','Chair','Coffee table','Side table','TV stand','Storage','Dining','Bed','Rug','Lighting','Pillows and throws','Decor','Plant','Other'];
@@ -398,6 +464,7 @@ function h(tag,attrs,...kids){
 let D=null;               // open design: {id,name,updated,cur,rooms:[{id,name,room:{src,w,h},cal,items:[]}]}
 let index=[];             // saved designs: [{id,name,updated,rooms}]
 const lib=new Map();      // furniture library: id -> piece
+const trash=new Map();    // deleted pieces, kept so they can be restored
 let sets=[];              // [{id,name,ids:[]}]
 let unit='in';
 let selId=null,history=[],W=0,H=0,multi=null,axisX=false;
@@ -407,6 +474,16 @@ const pix=new Map();      // piece id -> ImageData of the original picture
 const imgCache=new WeakMap();
 const R=()=>D.rooms.find(r=>r.id===D.cur)||D.rooms[0];
 const P=id=>lib.get(id);
+const STORE_NAMES={ikea:'IKEA',cb2:'CB2',wayfair:'Wayfair',westelm:'West Elm',structube:'Structube',article:'Article',amazon:'Amazon'};
+function storeFromHost(host){
+  const parts=String(host).replace(/^www\./,'').split('.');
+  const base=(parts.length>2&&/^(co|com|org)$/.test(parts[parts.length-2])?parts[parts.length-3]:parts[parts.length-2])||parts[0]||'';
+  return STORE_NAMES[base.toLowerCase()]||base.charAt(0).toUpperCase()+base.slice(1);
+}
+function storeOf(p){
+  if(p.link){try{return storeFromHost(new URL(p.link).hostname);}catch(_){}}
+  const t=(p.store||'').trim();return !t?'':t.includes('.')?storeFromHost(t):t;
+}
 const pv=p=>(p.useCut&&p.cut)?p.cut:p.orig;
 const hasSize=p=>p.w>0||p.h>0;
 
@@ -567,6 +644,18 @@ function trueS(it,rm){
   return clamp(dw*p.orig.w/v.w,.004,6);
 }
 const dispW=it=>{const p=P(it.a);return it.s*pv(p).w/p.orig.w;};
+/* Copies of the same piece always share one size (until the room is sized, when true size takes over).
+   Resizing any copy resizes them all, so two identical pieces can never come out different. */
+function setAnchor(it){for(const o of R().items)if(o.a===it.a)o.anc=(o===it);}
+function famFix(rm){
+  const g=new Map();
+  for(const it of rm.items){if(effAuto(it,rm))continue;let a=g.get(it.a);if(!a)g.set(it.a,a=[]);a.push(it);}
+  for(const list of g.values()){
+    if(list.length<2)continue;
+    const anc=list.find(i=>i.anc)||list[0];
+    for(const it of list)if(it!==anc&&!it.lk)it.s=anc.s;
+  }
+}
 
 /* ---------- Background removal ---------- */
 function borderStats(d,w,h,tol){
@@ -654,23 +743,14 @@ async function setRoomPhoto(file){
   }catch(e){toast('That photo could not be opened. Try a JPG or PNG.');}
 }
 function renderTabs(){
-  tabs.textContent='';
-  for(const rm of D.rooms){
-    const cur=rm.id===R().id;
-    tabs.append(h('button',{type:'button',class:'btn small'+(cur?' on':''),'data-room':rm.id,'aria-current':cur?'true':null,text:rm.name||'Room'}));
-  }
-  const sample=R().room.sample;
-  tabs.append(h('label',{class:'btn small'+(sample?' primary':''),for:'roomFile','data-mode':'new',tabindex:'0',text:sample?'Add your photo':'Add room'}));
-  $('#designName').textContent=D.name;
+  const i=D.rooms.findIndex(r=>r.id===R().id);
+  $('#designTitle').textContent=D.name;
+  $('#designName').textContent=R().name+(D.rooms.length>1?'  ·  '+(i+1)+' of '+D.rooms.length:'');
 }
 function goRoom(id){
   if(id===D.cur||calMode)return;
   D.cur=id;selId=null;multi=null;axisX=false;renderTabs();layout();save();
-  const c=tabs.querySelector('[aria-current="true"]');if(c&&c.scrollIntoView)c.scrollIntoView({inline:'nearest',block:'nearest'});
 }
-tabs.addEventListener('click',e=>{
-  const b=e.target.closest('[data-room]');if(!b)return;goRoom(b.dataset.room);
-});
 function swipeRoom(dir){
   const i=D.rooms.findIndex(r=>r.id===D.cur),n=i+dir;
   if(D.rooms.length<2){toast('Add a neighbouring room to swipe between rooms.');return;}
@@ -704,7 +784,7 @@ async function quickAdd(file){
 /* ---------- Drawing the screen ---------- */
 function layout(){
   const r=R().room;
-  const pw=well.clientWidth-36,ph=well.clientHeight-16;if(pw<=0||ph<=0)return;
+  const cs=getComputedStyle(well),pw=well.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),ph=well.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);if(pw<=0||ph<=0)return;
   const k=Math.min(pw/r.w,ph/r.h);W=r.w*k;H=r.h*k;
   stage.style.width=W+'px';stage.style.height=H+'px';
   render();
@@ -715,6 +795,7 @@ function render(){
   chip.hidden=!r.sample;
   sizeChip.hidden=calMode||sized(rm);
   const keep=new Set();
+  famFix(rm);
   rm.items.forEach((it,idx)=>{
     const p=P(it.a);if(!p)return;
     let el=els.get(it.id);
@@ -875,12 +956,12 @@ well.addEventListener('pointermove',e=>{
     touch();it.x=clamp(g.x0+dx/W,-.25,1.25);it.y=axisX?g.y0:clamp(g.y0+dy/H,-.25,1.25);
   }else if(g.mode==='size'||g.mode==='turn'){
     const c=centerOf(it),d=Math.hypot(e.clientX-c.x,e.clientY-c.y),a=Math.atan2(e.clientY-c.y,e.clientX-c.x);
-    if(g.mode==='size'){if(fixed)return;touch();it.s=clamp(g.s0*d/g.d0,.01,6);}
+    if(g.mode==='size'){if(fixed)return;touch();it.s=clamp(g.s0*d/g.d0,.01,6);setAnchor(it);}
     else{touch();it.r=snapAngle(g.r0+wrapA(a-g.a0));}
   }else if(g.mode==='pinch'){
     const [p,q]=[...ptrs.values()];if(!q)return;
     const d=Math.hypot(q.x-p.x,q.y-p.y),a=Math.atan2(q.y-p.y,q.x-p.x);
-    touch();if(!fixed)it.s=clamp(g.s0*d/g.d0,.01,6);
+    touch();if(!fixed){it.s=clamp(g.s0*d/g.d0,.01,6);setAnchor(it);}
     const da=wrapA(a-g.a0);
     if(!g.twist&&Math.abs(da)>.35){g.twist=true;g.aOff=da;}   // two fingers only turn a piece after a deliberate twist
     if(g.twist)it.r=snapAngle(g.r0+da-g.aOff);
@@ -947,7 +1028,7 @@ actions.addEventListener('click',async e=>{
   else if(act==='auto'){it.auto=!effAuto(it,rm);if(!it.auto)toast('Now sized by hand. Tap True size to snap back.');}
   else if(act==='copy'){
     const w=dispW(it),gap=w*1.04,nx=it.x+gap<=1.05?it.x+gap:it.x-gap;
-    const c=Object.assign({},it,{id:uid(),lk:false,x:clamp(nx,-.2,1.2)});items.push(c);selId=c.id;axisX=true;
+    const c=Object.assign({},it,{id:uid(),lk:false,anc:false,x:clamp(nx,-.2,1.2)});items.push(c);selId=c.id;axisX=true;
     toast('Duplicated beside the original. Drag it sideways to place it.');
   }
   else if(act==='remove'){items.splice(i,1);selId=null;renderTray();}
@@ -1052,62 +1133,144 @@ document.addEventListener('keydown',e=>{
   const l=e.target.closest&&e.target.closest('label.btn');
   if(l&&(e.key==='Enter'||e.key===' ')){e.preventDefault();if(l.dataset.mode)roomMode=l.dataset.mode;document.getElementById(l.htmlFor).click();}
 });
-$('#pasteBox').addEventListener('input',e=>{e.target.value='';});
 document.addEventListener('paste',e=>{
   const cd=e.clipboardData;if(!cd)return;
   let files=[...(cd.files||[])];
   if(!files.length&&cd.items){for(const it of cd.items){if(it.kind==='file'){const f=it.getAsFile();if(f)files.push(f);}}}
   if(takeFiles(files)){e.preventDefault();return;}
-  if(e.target&&e.target.id==='pasteBox')toast('No picture was found. Copy the picture itself, then paste.');
 });
 
-/* ---------- Sheets ---------- */
+/* ---------- Pages (full screen, swipe right to go back) ---------- */
+let libView='cards',roomSettings=false;
 function openSheet(s){
   if(calMode)exitCal();
   closeSheets();s.hidden=false;
-  if(s===menuSheet)renderMenu();
-  if(s===libSheet){renderLib();renderStores();}
+  const body=s.querySelector('.sheet');if(body)body.scrollTop=0;
+  if(s===menuSheet){roomSettings=false;renderMenu();}
+  if(s===libSheet){libView='cards';renderLib();}
 }
 function closeSheets(){for(const s of SHEETS)s.hidden=true;$('#setNameRow').hidden=true;}
-for(const s of [libSheet,menuSheet])s.addEventListener('click',e=>{if(e.target===s||e.target.closest('[data-close]'))closeSheets();});
+function goBack(){
+  if(!pieceSheet.hidden){draft=null;openSheet(libSheet);return true;}
+  if(!libSheet.hidden){if(libView==='trash'){libView='cards';renderLib();}else closeSheets();return true;}
+  if(!menuSheet.hidden){closeSheets();return true;}
+  return false;
+}
+for(const b of document.querySelectorAll('[data-back]'))b.addEventListener('click',goBack);
 $('#menuBtn').addEventListener('click',()=>openSheet(menuSheet));
+$('#myFurn').addEventListener('click',()=>openSheet(libSheet));
+/* swipe right (or down from the top) on any page goes back */
+for(const sh of document.querySelectorAll('.sheet')){
+  let t=null;
+  sh.addEventListener('touchstart',e=>{
+    const tg=e.target;
+    if(e.touches.length!==1||/^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)||tg.closest('#photoBox,.row,.chips')){t=null;return;}
+    t={x:e.touches[0].clientX,y:e.touches[0].clientY,top:sh.scrollTop<=0};
+  },{passive:true});
+  sh.addEventListener('touchend',e=>{
+    if(!t)return;const c=e.changedTouches[0],dx=c.clientX-t.x,dy=c.clientY-t.y;
+    if((dx>80&&dx>Math.abs(dy)*1.8&&t.x>=24)||(t.top&&dy>120&&dy>Math.abs(dx)*1.8))goBack();
+    t=null;
+  },{passive:true});
+}
+/* a pop-up question that returns true or false */
+function askConfirm(title,text,yes){
+  return new Promise(res=>{
+    $('#dlgT').textContent=title;$('#dlgP').textContent=text||'';$('#dlgYes').textContent=yes||'Delete';$('#dlg').hidden=false;
+    const done=v=>{$('#dlg').hidden=true;$('#dlgYes').onclick=$('#dlgNo').onclick=null;res(v);};
+    $('#dlgYes').onclick=()=>done(true);$('#dlgNo').onclick=()=>done(false);
+  });
+}
 
 /* ---------- Furniture library ---------- */
-let fType='All',fSet='';
+let fType='',fSet='',fStore='';
+const NOSTORE='__none';
+function pieceCard(p,inTrash){
+  const dims=dimText(p),st=storeOf(p);
+  const btns=inTrash
+    ?[h('button',{type:'button',class:'btn primary',text:'Restore',onclick:()=>restorePiece(p.id)}),
+      h('button',{type:'button',class:'btn danger',text:'Delete forever',onclick:async()=>{
+        if(await askConfirm('Delete forever?','This cannot be undone.','Delete forever')){trash.delete(p.id);idbDel('p:'+p.id).catch(()=>{});renderLib();}}})]
+    :[h('button',{type:'button',class:'btn primary',text:'Place',onclick:()=>{closeSheets();placeNow(p);}}),
+      h('button',{type:'button',class:'btn',text:'Edit',onclick:()=>openPiece(p.id)}),
+      p.link?h('a',{class:'btn',href:p.link,target:'_blank',rel:'noopener',text:'Store'}):null,
+      h('button',{type:'button',class:'btn danger',text:'Delete',onclick:()=>deletePiece(p.id)})];
+  return h('div',{class:'card'},
+    h('div',{class:'ph'},h('img',{alt:'',src:pv(p).src})),
+    h('b',{text:p.name}),
+    h('span',{text:[p.type,st].filter(Boolean).join(' · ')}),
+    h('span',{},dims?document.createTextNode(dims):h('span',{class:'tag warn',text:'No size yet'})),
+    h('div',{class:'wrap'},...btns));
+}
+function fillSelect(sel,allLabel,opts,cur){
+  sel.textContent='';sel.append(h('option',{value:'',text:allLabel}));
+  for(const [v,t] of opts)sel.append(h('option',{value:v,text:t}));
+  sel.value=opts.some(o=>o[0]===cur)?cur:'';
+  return sel.value;
+}
 function renderLib(){
-  const chips=$('#typeChips');chips.textContent='';
-  const present=new Set([...lib.values()].map(p=>p.type));
-  for(const t of ['All'].concat(TYPES.filter(t=>present.has(t)))){
-    chips.append(h('button',{type:'button',class:'btn small'+(fType===t?' on':''),text:t,onclick:()=>{fType=t;renderLib();}}));
+  const inTrash=libView==='trash';
+  $('#libTitle').textContent=inTrash?'Recently deleted':'My furniture';
+  $('#addPiece').hidden=inTrash;$('#libTools').hidden=false;
+  const grid=$('#grid');grid.textContent='';
+  if(inTrash){
+    $('.filters').hidden=true;$('#setRow').hidden=true;$('#fClear').hidden=true;$('#trashBtn').hidden=true;
+    const list=[...trash.values()].sort((a,b)=>(b.del||0)-(a.del||0));
+    for(const p of list)grid.append(pieceCard(p,true));
+    if(!list.length)grid.append(h('p',{text:'Nothing here. Deleted pieces wait here until you delete them forever.'}));
+    return;
   }
-  if(fType!=='All'&&!present.has(fType))fType='All';
+  $('.filters').hidden=false;
+  const all=[...lib.values()];
+  const stores=[...new Set(all.map(storeOf).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const sOpts=stores.map(x=>[x,x]);if(all.some(p=>!storeOf(p)))sOpts.push([NOSTORE,'No store']);
+  fStore=fillSelect($('#fStore'),'All stores',sOpts,fStore);
+  const present=new Set(all.map(p=>p.type));
+  fType=fillSelect($('#fType'),'All types',TYPES.filter(t=>present.has(t)).map(t=>[t,t]),fType);
   const ss=$('#setSel');ss.textContent='';
   ss.append(h('option',{value:'',text:'All pieces'}));
-  for(const s of sets)ss.append(h('option',{value:s.id,text:'Set: '+s.name}));
-  if(!sets.some(s=>s.id===fSet))fSet='';
-  ss.value=fSet;ss.hidden=!sets.length;
-  const set=sets.find(s=>s.id===fSet);
+  for(const x of sets)ss.append(h('option',{value:x.id,text:'Set: '+x.name}));
+  if(!sets.some(x=>x.id===fSet))fSet='';
+  ss.value=fSet;$('#setRow').hidden=!sets.length;
+  const set=sets.find(x=>x.id===fSet);
   $('#setPlace').hidden=$('#setDel').hidden=!set;
-  const q=$('#libSearch').value.trim().toLowerCase();
-  const list=[...lib.values()].filter(p=>(fType==='All'||p.type===fType)&&(!set||set.ids.includes(p.id))&&
-    (!q||(p.name+' '+p.store+' '+p.type).toLowerCase().includes(q))).sort((a,b)=>(b.added||0)-(a.added||0));
-  const grid=$('#grid');grid.textContent='';
-  for(const p of list){
-    const dims=dimText(p);
-    grid.append(h('div',{class:'card'},
-      h('div',{class:'ph'},h('img',{alt:'',src:pv(p).src})),
-      h('b',{text:p.name}),
-      h('span',{text:[p.type,p.store].filter(Boolean).join(' · ')}),
-      h('span',{},dims?document.createTextNode(dims):h('span',{class:'tag warn',text:'No size yet'}),p.sample?h('span',{class:'tag',text:'Sample',style:'margin-left:6px'}):null),
-      h('div',{class:'wrap'},
-        h('button',{type:'button',class:'btn primary',text:'Place',onclick:()=>{if(innerWidth<900)closeSheets();placeNow(p);}}),
-        h('button',{type:'button',class:'btn',text:'Edit',onclick:()=>openPiece(p.id)}),
-        p.link?h('a',{class:'btn',href:p.link,target:'_blank',rel:'noopener',text:'Store'}):null)));
-  }
-  if(!list.length)grid.append(h('p',{text:lib.size?'Nothing matches. Try another type or clear the search.':'No furniture yet. Tap Add a piece to start your list.'}));
+  $('#fClear').hidden=!(fStore||fType||fSet);
+  $('#trashBtn').hidden=!trash.size;$('#trashBtn').textContent='Recently deleted ('+trash.size+')';
+  const list=all.filter(p=>(!fType||p.type===fType)&&(!fStore||(fStore===NOSTORE?!storeOf(p):storeOf(p)===fStore))&&(!set||set.ids.includes(p.id)))
+    .sort((a,b)=>(b.added||0)-(a.added||0));
+  for(const p of list)grid.append(pieceCard(p,false));
+  if(!list.length)grid.append(h('p',{text:lib.size?'Nothing matches these filters.':'No furniture yet. Tap + Add to start your list.'}));
 }
-$('#libSearch').addEventListener('input',renderLib);
+$('#fStore').addEventListener('change',e=>{fStore=e.target.value;renderLib();});
+$('#fType').addEventListener('change',e=>{fType=e.target.value;renderLib();});
+$('#fClear').addEventListener('click',()=>{fStore=fType=fSet='';renderLib();});
+$('#trashBtn').addEventListener('click',()=>{libView='trash';renderLib();$('#libSheet .sheet').scrollTop=0;});
 $('#setSel').addEventListener('change',e=>{fSet=e.target.value;renderLib();});
+/* delete keeps the piece in Recently deleted so it can come back */
+async function deletePiece(id){
+  const p=P(id);if(!p)return;
+  if(!await askConfirm('Delete "'+p.name+'"?','It moves to Recently deleted, where you can restore it.','Delete'))return;
+  p.del=Date.now();
+  p.delItems=[];for(const rm of D.rooms)for(const it of rm.items)if(it.a===id)p.delItems.push({rid:rm.id,item:it});
+  p.delSets=sets.filter(x=>x.ids.includes(id)).map(x=>x.id);
+  lib.delete(id);pix.delete(id);trash.set(id,p);savePiece(p);
+  for(const rm of D.rooms)rm.items=rm.items.filter(i=>i.a!==id);
+  let ch=false;for(const x of sets){if(x.ids.includes(id)){x.ids=x.ids.filter(y=>y!==id);ch=true;}}
+  if(ch)saveSets();
+  selId=null;renderTray();render();save();
+  if(!pieceSheet.hidden){draft=null;openSheet(libSheet);}else renderLib();
+  toast('Moved to Recently deleted.');
+}
+function restorePiece(id){
+  const p=trash.get(id);if(!p)return;
+  trash.delete(id);
+  for(const {rid,item} of (p.delItems||[])){const rm=D.rooms.find(r=>r.id===rid);if(rm&&!rm.items.some(i=>i.id===item.id))rm.items.push(item);}
+  for(const sid of (p.delSets||[])){const x=sets.find(y=>y.id===sid);if(x&&!x.ids.includes(id))x.ids.push(id);}
+  delete p.del;delete p.delItems;delete p.delSets;
+  lib.set(id,p);savePiece(p);saveSets();
+  renderTray();render();save();renderLib();
+  toast('Restored.');
+}
 $('#addPiece').addEventListener('click',()=>openPiece(null));
 $('#setPlace').addEventListener('click',()=>{
   const set=sets.find(s=>s.id===fSet);if(!set)return;
@@ -1143,16 +1306,19 @@ function showDraftPhoto(){
 function openPiece(id){
   const p=id?P(id):null;
   if(calMode)exitCal();
-  draft=p?{id:p.id,orig:p.orig,cut:p.cut,useCut:p.useCut,tol:p.tol,data:pix.get(p.id)||null,vals:valInit(p),sets:new Set(sets.filter(s=>s.ids.includes(p.id)).map(s=>s.id))}
-         :{id:null,orig:null,cut:null,useCut:false,tol:26,data:null,vals:{},sets:new Set(fSet?[fSet]:[])};
+  draft=p?{id:p.id,orig:p.orig,cut:p.cut,useCut:p.useCut,tol:p.tol,data:pix.get(p.id)||null,vals:valInit(p),more:(p.more||[]).map(m=>({l:m.l,v:m.v})),sets:new Set(sets.filter(s=>s.ids.includes(p.id)).map(s=>s.id))}
+         :{id:null,orig:null,cut:null,useCut:false,tol:26,data:null,vals:{},more:[],sets:new Set(fSet?[fSet]:[])};
   closeSheets();pieceSheet.hidden=false;
   $('#pieceTitle').textContent=p?'Edit piece':'Add a piece';
   const ts=$('#pType');ts.textContent='';for(const t of TYPES)ts.append(h('option',{value:t,text:t}));
-  $('#pName').value=p?p.name:'';ts.value=p?p.type:(fType!=='All'?fType:'Other');
-  $('#pNotes').value=p&&p.notes?p.notes:'';$('#pStore').value=p?p.store:'';$('#pLink').value=p?p.link:'';
-  renderFields();
-  $('#pFetch').hidden=hosted;$('#fetchNote').hidden=hosted||!!helperUrl;
-  $('#pDelete').hidden=!p;$('#pasteBox').value='';$('#candBox').hidden=true;$('#candRow').textContent='';
+  $('#pName').value=p?p.name:'';ts.value=p?p.type:(fType||'Other');
+  $('#pLink').value=p?p.link:'';
+  renderFields();renderMore();
+  const on=$('#oldNotes');on.hidden=!(p&&p.notes&&!(p.more&&p.more.length));on.textContent=p&&p.notes?'Notes: '+p.notes:'';
+  $('#pFetch').hidden=hosted;$('#browseIkea').hidden=hosted&&false;$('#fetchNote').hidden=hosted||!!helperUrl;
+  fetchLabel();
+  $('#pDelete').hidden=!p;$('#candBox').hidden=true;$('#candRow').textContent='';
+  $('#pieceForm').scrollTop=0;
   const row=$('#pSetsRow'),box=$('#pSets');row.hidden=!sets.length;box.textContent='';
   for(const s of sets){
     const b=h('button',{type:'button',class:'btn small'+(draft.sets.has(s.id)?' on':''),text:s.name,'aria-pressed':String(draft.sets.has(s.id))});
@@ -1182,6 +1348,20 @@ function renderFields(){
     box.append(h('label',{class:'lbl'},label+(kind==='len'?' ('+unit+')':''),inp));
   }
 }
+function renderMore(){
+  const box=$('#pMore');box.textContent='';
+  draft.more.forEach((m,i)=>{
+    const l=h('input',{class:'field',type:'text',maxlength:30,autocomplete:'off',placeholder:'Measurement, like Base','aria-label':'Measurement name'});
+    l.value=m.l||'';l.addEventListener('input',()=>{m.l=l.value;});
+    const v=h('input',{class:'field val',type:'text',inputmode:'decimal',autocomplete:'off',placeholder:'0','aria-label':'Value'});
+    v.value=m.v>0?fmt(m.v):'';
+    v.addEventListener('input',()=>{const n=parseFloat(v.value.replace(',','.'));m.v=n>0?fromUnit(n):null;});
+    const x=h('button',{type:'button',class:'btn x',text:'×','aria-label':'Remove measurement'});
+    x.addEventListener('click',()=>{draft.more.splice(i,1);renderMore();});
+    box.append(h('div',{class:'mrow',style:'margin-bottom:6px'},l,v,h('span',{class:'unit',text:unit}),x));
+  });
+}
+$('#addMore').addEventListener('click',()=>{draft.more.push({l:'',v:null});renderMore();const f=$('#pMore').lastChild;if(f)f.querySelector('input').focus();});
 $('#pType').addEventListener('change',renderFields);
 async function setDraftPhoto(file){
   if(!draft)return;
@@ -1303,10 +1483,18 @@ async function loadCandidates(urls,link,signal){
   let k=c.findIndex(q=>q.sc>=.6);if(k<0)k=0;
   await use(k);return true;
 }
+function fetchLabel(){$('#pFetch').textContent=normLink($('#pLink').value)?'Fetch':'Paste & fetch';}
+$('#pLink').addEventListener('input',fetchLabel);
+$('#pLink').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#pFetch').click();}});
 $('#pFetch').addEventListener('click',async()=>{
   if(!draft)return;
+  if(!normLink($('#pLink').value)){
+    // nothing usable in the field yet: take the link straight from the clipboard
+    try{const t=((await navigator.clipboard.readText())||'').trim();if(normLink(t)){$('#pLink').value=t;fetchLabel();}}
+    catch(_){toast('Press and hold the link field and tap Paste.');return;}
+  }
   const link=normLink($('#pLink').value);
-  if(!link){toast('Paste a product link first.');return;}
+  if(!link){toast('No product link found on the clipboard.');return;}
   if(!helperUrl){toast('Add the link helper address in Menu first.');return;}
   const btn=$('#pFetch'),ac=new AbortController(),timer=setTimeout(()=>ac.abort(),45000);
   btn.disabled=true;btn.textContent='Fetching…';
@@ -1327,7 +1515,7 @@ $('#pFetch').addEventListener('click',async()=>{
     if($('#pType').value==='Other'){const g=GUESS.find(([re])=>re.test(j.name||''));if(g){$('#pType').value=g[1];got.push('type');}}
     const {out,rest}=mapMeasures($('#pType').value,j.measures||[]);
     let n=0;for(const k in out)if(draft.vals[k]==null){draft.vals[k]=out[k];n++;}
-    if(rest.length&&!$('#pNotes').value.trim())$('#pNotes').value=rest.map(m=>m.label+' '+fmt(m.inches)+' '+unit).join(', ').slice(0,200);
+    if(rest.length&&!draft.more.length){for(const m of rest.slice(0,6))draft.more.push({l:String(m.label).slice(0,30),v:m.inches});renderMore();}
     if(n)got.push(n+(n===1?' measurement':' measurements'));
     renderFields();
     if(Array.isArray(j.images)&&j.images.length){
@@ -1363,10 +1551,10 @@ function savePieceForm(andPlace){
   for(const k in vals)if(!['w','d','h'].includes(k))extra[k]=vals[k];
   const old=draft.id?P(draft.id):null;
   const p=old||{id:uid(),added:Date.now()};
-  let store=$('#pStore').value.trim();
-  if(!store&&link){const host=new URL(link).hostname.replace(/^www\./,'');store=host.charAt(0).toUpperCase()+host.slice(1);}
+  const store=link?storeFromHost(new URL(link).hostname):(old?old.store||'':'');
+  const more=draft.more.filter(m=>m.l&&m.l.trim()&&m.v>0).map(m=>({l:m.l.trim().slice(0,30),v:m.v}));
   Object.assign(p,{name:$('#pName').value.trim()||'Untitled piece',type:$('#pType').value,store,link,
-    notes:$('#pNotes').value.trim(),w:vals.w||null,d:vals.d||null,h:vals.h||null,x:extra,orig:draft.orig,cut:draft.cut,useCut:!!(draft.useCut&&draft.cut),tol:draft.tol});
+    more,w:vals.w||null,d:vals.d||null,h:vals.h||null,x:extra,orig:draft.orig,cut:draft.cut,useCut:!!(draft.useCut&&draft.cut),tol:draft.tol});
   if(draft.newPhoto&&p.sample)delete p.sample;
   if(draft.data)pix.set(p.id,draft.data);else if(draft.newPhoto)pix.delete(p.id);
   lib.set(p.id,p);savePiece(p);
@@ -1379,43 +1567,24 @@ function savePieceForm(andPlace){
 }
 $('#pieceForm').addEventListener('submit',e=>{e.preventDefault();savePieceForm(true);});
 $('#pSave').addEventListener('click',()=>savePieceForm(false));
-$('#pCancel').addEventListener('click',()=>{draft=null;openSheet(libSheet);});
-$('#pDelete').addEventListener('click',e=>confirmTap(e.currentTarget,()=>{
-  const id=draft.id;draft=null;
-  lib.delete(id);pix.delete(id);idbDel('p:'+id).catch(()=>{});
-  for(const rm of D.rooms)rm.items=rm.items.filter(i=>i.a!==id);
-  let ch=false;for(const s of sets){if(s.ids.includes(id)){s.ids=s.ids.filter(x=>x!==id);ch=true;}}
-  if(ch)saveSets();
-  selId=null;renderTray();render();save();openSheet(libSheet);
-}));
-
-/* ---------- Stores ---------- */
-const STORES=[['IKEA','https://www.ikea.com/ca/en/'],['Wayfair','https://www.wayfair.ca/'],['Structube','https://www.structube.com/'],
-              ['West Elm','https://www.westelm.ca/'],['Article','https://www.article.com/'],['CB2','https://www.cb2.ca/']];
-let myStores=[];
-function renderStores(){
-  const box=$('#stores');box.textContent='';
-  const link=(name,url)=>h('a',{class:'btn small',href:url,target:'_blank',rel:'noopener',text:name});
-  for(const [n,u] of STORES)box.append(link(n,u));
-  myStores.forEach((s,i)=>{
-    box.append(h('span',{class:'storechip'},link(s.name,s.url),
-      h('button',{type:'button',class:'btn small',text:'×','aria-label':'Remove '+s.name,onclick:()=>{myStores.splice(i,1);idbSet('stores',myStores).catch(()=>{});renderStores();}})));
-  });
-}
-function addStore(){
-  const inp=$('#storeUrl'),href=normLink(inp.value);if(!inp.value.trim())return;
-  if(!href){toast('That does not look like a website address.');return;}
-  const host=new URL(href).hostname.replace(/^www\./,'');
-  myStores.push({name:host.charAt(0).toUpperCase()+host.slice(1),url:href});
-  idbSet('stores',myStores).catch(()=>{});inp.value='';renderStores();
-}
-$('#storeAdd').addEventListener('click',addStore);
-$('#storeUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addStore();}});
+$('#pDelete').addEventListener('click',()=>{if(draft&&draft.id)deletePiece(draft.id);});
 
 /* ---------- Menu: rooms and designs ---------- */
 function renderMenu(){
   const rm=R();
+  const list0=$('#roomList');list0.textContent='';
+  for(const r of D.rooms){
+    const cur=r.id===D.cur;
+    const open=h('button',{type:'button',class:'btn open'+(cur?' on':''),onclick:()=>{goRoom(r.id);closeSheets();}},
+      h('b',{text:r.name||'Room'}),h('span',{text:(cur?'Showing now · ':'')+r.items.length+(r.items.length===1?' piece':' pieces')}));
+    const st=h('button',{type:'button',class:'btn small'+(cur&&roomSettings?' on':''),text:'Settings',
+      onclick:()=>{if(!(cur&&roomSettings)){roomSettings=true;if(!cur)goRoom(r.id);}else roomSettings=false;renderMenu();}});
+    list0.append(h('div',{class:'roomrow'},open,st));
+  }
+  $('#roomPanel').hidden=!roomSettings;
+  $('#roomPanelTitle').textContent='Settings for '+rm.name;
   $('#roomName').value=rm.name;$('#designInput').value=D.name;
+  $('#myFurn').textContent='My furniture ('+lib.size+')';
   $('#deleteRoom').hidden=D.rooms.length<2;
   $('#resetRoom').disabled=!rm.items.length;
   $('#sizeRoom').textContent=sized(rm)?'Change room size':'Set room size';
@@ -1432,8 +1601,8 @@ function renderMenu(){
     box.append(h('div',{class:'saved'},o,x));
   }
 }
-$('#roomName').addEventListener('input',e=>{R().name=e.target.value.trim()||'Room';renderTabs();save();});
-$('#designInput').addEventListener('input',e=>{D.name=e.target.value.trim()||'Untitled design';$('#designName').textContent=D.name;save();});
+$('#roomName').addEventListener('input',e=>{R().name=e.target.value.trim()||'Room';renderTabs();save();const cb=document.querySelector('#roomList .open.on b');if(cb)cb.textContent=R().name;});
+$('#designInput').addEventListener('input',e=>{D.name=e.target.value.trim()||'Untitled design';renderTabs();save();});
 for(const b of document.querySelectorAll('[data-unit]'))b.addEventListener('click',()=>setUnit(b.dataset.unit));
 $('#resetRoom').addEventListener('click',()=>{
   const rm=R();if(!rm.items.length)return;
@@ -1586,11 +1755,10 @@ async function boot(){
   let d=null;
   try{
     index=(await idbGet('index'))||[];
-    myStores=(await idbGet('stores'))||[];
     sets=(await idbGet('sets'))||[];
     unit=(await idbGet('unit'))==='cm'?'cm':'in';
     helperUrl=(await idbGet('helper'))||'';
-    for(const p of await idbAll('p:'))if(p&&p.id&&p.orig)lib.set(p.id,p);
+    for(const p of await idbAll('p:'))if(p&&p.id&&p.orig){if(p.del)trash.set(p.id,p);else lib.set(p.id,p);}
     const last=await idbGet('last');
     if(last)d=await idbGet('d:'+last);
     if(!d&&index.length)d=await idbGet('d:'+index[0].id);
