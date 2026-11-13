@@ -1336,6 +1336,7 @@ $('#pFetch').addEventListener('click',async()=>{
     }else if(j.image&&!draft.orig){
       try{const blob=await (await fetch(j.image)).blob();await setDraftPhoto(new File([blob],'product.jpg',{type:blob.type||'image/jpeg'}));got.push('photo');}catch(_){}
     }
+    if(got.includes('photo')){try{$('#pieceForm').scrollTo({top:0,behavior:'smooth'});}catch(_){$('#pieceForm').scrollTop=0;}}
     toast(got.length?'Filled in '+got.join(', ')+'. Check the numbers against the store page.':'Nothing new to fill in.');
   }catch(e){toast('Something went wrong reading the helper reply.');}
   finally{clearTimeout(timer);btn.disabled=false;btn.textContent='Fetch details';}
