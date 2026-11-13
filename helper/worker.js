@@ -30,36 +30,50 @@ export default {
     const target = safeUrl(qs.get('url'));
     if (!target) return json({ ok: false, reason: 'badurl' }, 400);
 
+    const viaSearch = async (reason) => {
+      const r = await searchFallback(target, env);
+      if (r) return json({ ok: true, viaSearch: true, name: r.name, images: [], store: target.hostname.replace(/^www\./, ''), image: null, measures: r.measures });
+      return json({ ok: false, reason });
+    };
+
     let resp;
     try {
       resp = await timed(target.href, {
         headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-CA,en;q=0.9' },
       }, 9000);
     } catch (e) {
-      return json({ ok: false, reason: 'unreachable' });
+      return viaSearch('unreachable');
     }
     if (resp.status === 404 || resp.status === 410) return json({ ok: false, reason: 'notfound' });
-    if (!resp.ok) return json({ ok: false, reason: 'blocked', status: resp.status });
+    if (!resp.ok) return viaSearch('blocked');
 
     const buf = await resp.arrayBuffer();
     const html = new TextDecoder('utf-8').decode(buf.byteLength > MAX_HTML ? buf.slice(0, MAX_HTML) : buf);
     const finalUrl = resp.url || target.href;
     if (/robot check|access denied|captcha|are you a human|unusual traffic/i.test((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '')) {
-      return json({ ok: false, reason: 'blocked' });
+      return viaSearch('blocked');
     }
 
     const info = parsePage(html, finalUrl);
-    if (!info.name && !info.imageUrl && !info.measures.length) return json({ ok: false, reason: 'empty' });
+    if (!info.name && !info.imageUrl && !info.measures.length) return viaSearch('empty');
+
+    let measures = info.measures, viaSrch = false;
+    if (!measures.length) {
+      // The page loaded but has no sizes in it. Ask a search engine, which has usually read the spec table.
+      const r = await searchFallback(target, env, info.name);
+      if (r && r.measures.length) { measures = r.measures; viaSrch = true; }
+    }
 
     let image = null;
     if (info.imageUrl) image = await fetchImage(info.imageUrl, finalUrl);
     return json({
       ok: true,
+      viaSearch: viaSrch,
       name: info.name,
       images: info.images,
       store: new URL(finalUrl).hostname.replace(/^www\./, ''),
       image,
-      measures: info.measures,
+      measures,
     });
   },
 };
@@ -267,4 +281,111 @@ function decode(s) {
     .replace(/&nbsp;|&#160;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
+}
+
+/* ---------- Search fallback: for stores that block the helper ---------- */
+// Builds a search from the product name in the link, reads the result snippets, and pulls sizes out of them.
+// Uses Brave Search when a BRAVE_KEY variable is set on the Worker, otherwise DuckDuckGo's plain page.
+
+function queryFromUrl(u, name) {
+  const segs = decodeURIComponent(u.pathname).split('/').filter(Boolean);
+  let best = '';
+  for (const sg of segs) {
+    const t = sg.replace(/\.(product\.\d+\.)?html?$/i, '').replace(/\.product\.\d+$/i, '');
+    if (/^\d+$/.test(t) || t.length < 4) continue;
+    if (t.replace(/[^a-z]/gi, '').length > best.replace(/[^a-z]/gi, '').length) best = t;
+  }
+  const words = (name || best).replace(/[-_+]+/g, ' ').replace(/\b\d{5,}\b/g, ' ').replace(/\s+/g, ' ').trim();
+  if (words.length < 4) return '';
+  const brand = u.hostname.replace(/^www\./, '').split('.')[0];
+  return (words + ' ' + brand + ' dimensions').slice(0, 140);
+}
+
+async function searchFallback(u, env, name) {
+  const q = queryFromUrl(u, name);
+  if (!q) return null;
+  let snippets = [], title = '';
+  try {
+    if (env.BRAVE_KEY) {
+      const r = await timed('https://api.search.brave.com/res/v1/web/search?count=10&q=' + encodeURIComponent(q), {
+        headers: { 'Accept': 'application/json', 'X-Subscription-Token': env.BRAVE_KEY },
+      }, 8000);
+      if (r.ok) {
+        const j = await r.json();
+        for (const x of (j.web && j.web.results) || []) {
+          snippets.push({ host: hostOf(x.url), text: decode(stripTags((x.title || '') + ' . ' + (x.description || '') + ' . ' + [].concat(x.extra_snippets || []).join(' . '))) });
+        }
+      }
+    } else {
+      const r = await timed('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(q), {
+        headers: { 'User-Agent': UA, 'Accept': 'text/html', 'Accept-Language': 'en-CA,en;q=0.9' },
+      }, 8000);
+      if (r.ok) {
+        const h = await r.text();
+        const re = /<a[^>]+class="result__a"[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+        let m;
+        while ((m = re.exec(h)) && snippets.length < 10) {
+          snippets.push({ host: hostOf(decodeURIComponent((m[1].match(/uddg=([^&]+)/) || [])[1] || m[1])), text: decode(stripTags(m[2] + ' . ' + m[3])) });
+        }
+      }
+    }
+  } catch (e) { return null; }
+  if (!snippets.length) return null;
+
+  // Prefer results from the same store or its maker, then anything else.
+  const own = u.hostname.replace(/^www\./, '');
+  snippets.sort((a, b) => (b.host === own) - (a.host === own));
+  title = cleanName(snippets[0].text.split(' . ')[0] || '');
+
+  for (const sn of snippets) {
+    const ms = sizesFromText(sn.text);
+    if (ms.length >= 2) return { name: title && !/^\W*$/.test(title) ? title : '', measures: ms };
+  }
+  return null;
+}
+
+function hostOf(x) { try { return new URL(x).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
+function stripTags(x) { return String(x).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '); }
+
+// "221 cm × 102 cm × 105 cm", "W x L x H 96 in. x 40 in. x 41 in.", plus labelled "Width: 38 in".
+function sizesFromText(t) {
+  const out = [];
+  const n = String.raw`(\d{1,3}(?:[.,]\d{1,2})?)`;
+  const u = String.raw`(cm|mm|in\.?|inches|["″”])`;
+  const tri = new RegExp(n + '\\s*' + u + '?\\s*[x×X]\\s*' + n + '\\s*' + u + '?\\s*[x×X]\\s*' + n + '\\s*' + u + '?', 'i');
+  const m = tri.exec(t);
+  if (m) {
+    const unit = m[6] || m[4] || m[2];
+    if (unit) {
+      const v = [parseFloat(m[1].replace(',', '.')), parseFloat(m[3].replace(',', '.')), parseFloat(m[5].replace(',', '.'))].map(x => toInches(x, unit.replace('.', '')));
+      // Two flat measurements and one height: the larger flat one is the width.
+      const hMatch = /\(\s*([WLDH])\s*[x×]\s*([WLDH])\s*[x×]\s*([WLDH])\s*\)|\b([WLDH])\s*[x×]\s*([WLDH])\s*[x×]\s*([WLDH])\b/i.exec(t);
+      const order = hMatch ? [hMatch[1] || hMatch[4], hMatch[2] || hMatch[5], hMatch[3] || hMatch[6]].map(x => x.toUpperCase()) : null;
+      let width, depth, height;
+      if (order && order.includes('H') && new Set(order).size === 3) {
+        const hi = order.indexOf('H');
+        height = v[hi];
+        const flat = v.filter((_, i) => i !== hi);
+        width = Math.max(...flat); depth = Math.min(...flat);
+      } else {
+        height = v[2];
+        width = Math.max(v[0], v[1]); depth = Math.min(v[0], v[1]);
+      }
+      for (const [l, val] of [['width', width], ['depth', depth], ['height', height]]) {
+        if (val >= 0.5 && val <= 400) out.push({ label: l, inches: Math.round(val * 10) / 10 });
+      }
+    }
+  }
+  if (out.length < 2) {
+    const lab = /\b(width|depth|height|length|diameter)\b\s*[:\-]?\s*(\d{1,3}(?:[.,]\d{1,2})?)\s*(cm|mm|in\.?|inches|["″”])/gi;
+    let k, c = 0;
+    const seen = new Set(out.map(o => o.label));
+    while ((k = lab.exec(t)) && c++ < 12) {
+      const l = k[1].toLowerCase();
+      if (seen.has(l)) continue;
+      seen.add(l);
+      out.push({ label: l, inches: Math.round(toInches(parseFloat(k[2].replace(',', '.')), k[3].replace('.', '')) * 10) / 10 });
+    }
+  }
+  return out;
 }

@@ -1637,7 +1637,7 @@ $('#pFetch').addEventListener('click',async()=>{
     if(got.includes('photo')){try{$('#pieceForm').scrollTo({top:0,behavior:'smooth'});}catch(_){$('#pieceForm').scrollTop=0;}}
     if(!Array.isArray(j.images)){toast('Your helper is the OLD version, so it can only fetch the main photo. Update it in Cloudflare to get all the photos to choose from.');return;}
     if(!draft.cands||!draft.cands.length)got.push('no usable extra photos');
-    toast(got.length?'Filled in '+got.join(', ')+'. Check the numbers against the store page.':'Nothing new to fill in.');
+    toast(j.viaSearch?(got.length?'Filled in '+got.join(', ')+' from a web search, not the store page. Check the numbers.':'Nothing new to fill in.'):got.length?'Filled in '+got.join(', ')+'. Check the numbers against the store page.':'Nothing new to fill in.');
   }catch(e){toast('Something went wrong reading the helper reply.');}
   finally{clearTimeout(timer);btn.disabled=false;btn.textContent='Fetch details';}
 });
